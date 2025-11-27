@@ -102,7 +102,7 @@ All critical backend fixes and missing endpoints have been implemented:
 **IMPORTANT:** You have two options:
 
 #### Option A: Fresh Database Setup (Recommended if database is empty)
-```sql
+\`\`\`sql
 -- Apply this single file if starting fresh:
 psql -h your-host -U postgres -d your-database -f scripts/000_complete_setup.sql
 
@@ -111,10 +111,10 @@ psql -h your-host -U postgres -d your-database -f scripts/011_missing_functions.
 psql -h your-host -U postgres -d your-database -f scripts/012_schema_fixes.sql
 psql -h your-host -U postgres -d your-database -f scripts/013_hr_tables.sql
 psql -h your-host -U postgres -d your-database -f scripts/014_storage_buckets.sql
-```
+\`\`\`
 
 #### Option B: Existing Database (If you already have tables)
-```sql
+\`\`\`sql
 -- Apply in order:
 1. psql -h your-host -U postgres -d your-database -f scripts/001_create_users_employees.sql
 2. psql -h your-host -U postgres -d your-database -f scripts/002_create_products_inventory.sql
@@ -128,7 +128,7 @@ psql -h your-host -U postgres -d your-database -f scripts/014_storage_buckets.sq
 10. psql -h your-host -U postgres -d your-database -f scripts/012_schema_fixes.sql
 11. psql -h your-host -U postgres -d your-database -f scripts/013_hr_tables.sql
 12. psql -h your-host -U postgres -d your-database -f scripts/014_storage_buckets.sql
-```
+\`\`\`
 
 #### Using Supabase Dashboard (Alternative)
 1. Go to Supabase Dashboard → SQL Editor
@@ -138,7 +138,7 @@ psql -h your-host -U postgres -d your-database -f scripts/014_storage_buckets.sq
 
 ### Step 2: Build and Test
 
-```bash
+\`\`\`bash
 # Install dependencies (if needed)
 npm install
 
@@ -146,7 +146,7 @@ npm install
 npm run build
 
 # Should complete without errors
-```
+\`\`\`
 
 ### Step 3: Test API Endpoints
 
@@ -158,13 +158,13 @@ You can test using:
 Example requests:
 
 **Get Claims:**
-```http
+\`\`\`http
 GET /api/hr/claims?status=pending
 Authorization: Bearer YOUR_TOKEN
-```
+\`\`\`
 
 **Create Claim:**
-```http
+\`\`\`http
 POST /api/hr/claims
 Content-Type: application/json
 Authorization: Bearer YOUR_TOKEN
@@ -177,10 +177,10 @@ Authorization: Bearer YOUR_TOKEN
   "place_route": "Office to Client Site",
   "notes": "Client meeting"
 }
-```
+\`\`\`
 
 **Approve Claim:**
-```http
+\`\`\`http
 PATCH /api/hr/claims/{id}
 Content-Type: application/json
 Authorization: Bearer YOUR_TOKEN
@@ -188,7 +188,7 @@ Authorization: Bearer YOUR_TOKEN
 {
   "status": "approved"
 }
-```
+\`\`\`
 
 ---
 
@@ -208,11 +208,11 @@ You may want to create:
 
 ### 3. Environment Variables
 Ensure your `.env` file has:
-```env
+\`\`\`env
 NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-```
+\`\`\`
 
 ---
 

@@ -111,7 +111,7 @@ This comprehensive audit analyzed the entire backend infrastructure of the Abang
 #### `claims` table
 **Required by:** `app/hr/claims/page.tsx`
 **Structure needed:**
-```sql
+\`\`\`sql
 CREATE TABLE claims (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   employee_id UUID REFERENCES employees(id),
@@ -129,12 +129,12 @@ CREATE TABLE claims (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
-```
+\`\`\`
 
 #### `leave_balances` table
 **Required by:** `app/hr/leave/page.tsx`
 **Structure needed:**
-```sql
+\`\`\`sql
 CREATE TABLE leave_balances (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   employee_id UUID REFERENCES employees(id),
@@ -146,12 +146,12 @@ CREATE TABLE leave_balances (
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(employee_id, year)
 );
-```
+\`\`\`
 
 #### `leave_applications` table
 **Required by:** `app/hr/leave/page.tsx`
 **Structure needed:**
-```sql
+\`\`\`sql
 CREATE TABLE leave_applications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   employee_id UUID REFERENCES employees(id),
@@ -169,12 +169,12 @@ CREATE TABLE leave_applications (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
-```
+\`\`\`
 
 #### `employee_documents` table
 **Required by:** `components/hr/document-upload.tsx`
 **Structure needed:**
-```sql
+\`\`\`sql
 CREATE TABLE employee_documents (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   employee_id UUID REFERENCES employees(id) ON DELETE CASCADE,
@@ -189,7 +189,7 @@ CREATE TABLE employee_documents (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
-```
+\`\`\`
 
 ### 2.3 Schema Mismatches ⚠️
 
@@ -207,14 +207,14 @@ CREATE TABLE employee_documents (
 - **MISSING:** `ot_rate` field
 
 **Fix required:**
-```sql
+\`\`\`sql
 ALTER TABLE employees
   ADD COLUMN IF NOT EXISTS salary_rate NUMERIC(10,2) DEFAULT 0,
   ADD COLUMN IF NOT EXISTS ot_rate NUMERIC(10,2) DEFAULT 0;
 
 -- Migrate existing data
 UPDATE employees SET salary_rate = salary_amount WHERE salary_rate IS NULL;
-```
+\`\`\`
 
 #### `attendance` table field discrepancies
 **Frontend expects:**
@@ -229,7 +229,7 @@ UPDATE employees SET salary_rate = salary_amount WHERE salary_rate IS NULL;
 - **MISSING:** All OT-specific fields above
 
 **Fix required:**
-```sql
+\`\`\`sql
 ALTER TABLE attendance
   ADD COLUMN IF NOT EXISTS ot_hours NUMERIC(5,2) DEFAULT 0,
   ADD COLUMN IF NOT EXISTS ot_clock_in TIMESTAMPTZ,
@@ -245,7 +245,7 @@ ALTER TABLE attendance
 
 -- Sync existing data
 UPDATE attendance SET ot_hours = overtime_hours WHERE ot_hours IS NULL;
-```
+\`\`\`
 
 #### `orders` table field discrepancies
 **Frontend expects:**
@@ -259,7 +259,7 @@ UPDATE attendance SET ot_hours = overtime_hours WHERE ot_hours IS NULL;
 - **MISSING:** All fields above
 
 **Fix required:**
-```sql
+\`\`\`sql
 ALTER TABLE orders
   ADD COLUMN IF NOT EXISTS source_type TEXT CHECK (source_type IN ('takeaway', 'gomamam')),
   ADD COLUMN IF NOT EXISTS customer_phone TEXT,
@@ -271,7 +271,7 @@ ALTER TABLE orders
   ADD COLUMN IF NOT EXISTS refunded_at TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS refunded_by UUID REFERENCES users(id),
   ADD COLUMN IF NOT EXISTS refund_amount NUMERIC(12,2);
-```
+\`\`\`
 
 #### `order_items` table field discrepancies
 **Frontend expects:**
@@ -281,11 +281,11 @@ ALTER TABLE orders
 - **MISSING:** Both fields
 
 **Fix required:**
-```sql
+\`\`\`sql
 ALTER TABLE order_items
   ADD COLUMN IF NOT EXISTS discount_amount NUMERIC(10,2) DEFAULT 0,
   ADD COLUMN IF NOT EXISTS discount_type TEXT CHECK (discount_type IN ('percentage', 'fixed'));
-```
+\`\`\`
 
 #### `expenses` table field discrepancies
 **Frontend expects:**
@@ -297,7 +297,7 @@ ALTER TABLE order_items
 - `date` ✅
 
 **Fix required:**
-```sql
+\`\`\`sql
 -- Create expense_categories table first
 CREATE TABLE IF NOT EXISTS expense_categories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -323,7 +323,7 @@ FROM expense_categories ec
 WHERE e.category = ec.name AND e.category_id IS NULL;
 
 UPDATE expenses SET expense_date = date WHERE expense_date IS NULL;
-```
+\`\`\`
 
 #### `ingredients` table field discrepancies
 **Frontend expects:**
@@ -334,13 +334,13 @@ UPDATE expenses SET expense_date = date WHERE expense_date IS NULL;
 - **MISSING:** `avg_cost_per_unit`
 
 **Fix required:**
-```sql
+\`\`\`sql
 ALTER TABLE ingredients
   ADD COLUMN IF NOT EXISTS avg_cost_per_unit NUMERIC(10,4) DEFAULT 0;
 
 -- Initialize with current cost
 UPDATE ingredients SET avg_cost_per_unit = cost_per_unit WHERE avg_cost_per_unit IS NULL;
-```
+\`\`\`
 
 ---
 
@@ -370,7 +370,7 @@ From `scripts/010_stock_counts_shifts.sql`:
 **Impact:** HIGH - Recompute stock button will fail
 
 **Implementation needed:**
-```sql
+\`\`\`sql
 CREATE OR REPLACE FUNCTION update_ingredient_stock(p_ingredient_id UUID)
 RETURNS void
 LANGUAGE plpgsql
@@ -407,7 +407,7 @@ BEGIN
   WHERE id = p_ingredient_id;
 END;
 $$;
-```
+\`\`\`
 
 #### `add_stock_movement()` RPC
 **Called by:** `components/inventory/add-stock-dialog.tsx`
@@ -415,7 +415,7 @@ $$;
 **Impact:** HIGH - Adding stock will fail
 
 **Implementation needed:**
-```sql
+\`\`\`sql
 CREATE OR REPLACE FUNCTION add_stock_movement(
   p_ingredient_id UUID,
   p_type TEXT,
@@ -483,7 +483,7 @@ BEGIN
   );
 END;
 $$;
-```
+\`\`\`
 
 ---
 
@@ -659,7 +659,7 @@ None identified - all components are referenced
 ### 9.2 Missing Indexes ⚠️
 
 **Recommended additions:**
-```sql
+\`\`\`sql
 -- Frequently queried date ranges
 CREATE INDEX idx_orders_created_at ON orders(created_at DESC);
 CREATE INDEX idx_attendance_date ON attendance(date DESC);
@@ -674,7 +674,7 @@ CREATE INDEX idx_order_items_product_id ON order_items(product_id);
 -- Status filtering
 CREATE INDEX idx_orders_payment_status ON orders(payment_status);
 CREATE INDEX idx_orders_status ON orders(status);
-```
+\`\`\`
 
 ---
 
