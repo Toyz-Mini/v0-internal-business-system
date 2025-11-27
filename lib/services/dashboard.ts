@@ -24,9 +24,7 @@ export class DashboardService {
       .select("*", { count: "exact", head: true })
       .eq("payment_status", "paid")
 
-    const { count: totalCustomers } = await supabase
-      .from("customers")
-      .select("*", { count: "exact", head: true })
+    const { count: totalCustomers } = await supabase.from("customers").select("*", { count: "exact", head: true })
 
     const { count: totalProducts } = await supabase
       .from("products")
@@ -42,7 +40,7 @@ export class DashboardService {
     }
   }
 
-  async getLowStock(limit: number = 10) {
+  async getLowStock(limit = 10) {
     const supabase = await createClient()
 
     const { data, error } = await supabase
@@ -64,7 +62,7 @@ export class DashboardService {
     return data
   }
 
-  async getRecentOrders(limit: number = 10) {
+  async getRecentOrders(limit = 10) {
     const supabase = await createClient()
 
     const { data, error } = await supabase
@@ -96,7 +94,7 @@ export class DashboardService {
       .select(`
         id,
         clock_in,
-        employee:employees(id, full_name, position)
+        employee:employees(id, name, position)
       `)
       .eq("date", today)
       .is("clock_out", null)

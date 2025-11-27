@@ -25,7 +25,7 @@ export class AttendanceService {
     return Number((diff / (1000 * 60 * 60)).toFixed(2))
   }
 
-  calculateOvertimeHours(totalHours: number, standardHours: number = 8) {
+  calculateOvertimeHours(totalHours: number, standardHours = 8) {
     if (totalHours > standardHours) {
       return Number((totalHours - standardHours).toFixed(2))
     }
@@ -39,7 +39,7 @@ export class AttendanceService {
       .from("attendance")
       .select(`
         *,
-        employee:employees(id, full_name, position)
+        employee:employees(id, name, position)
       `)
       .order("date", { ascending: false })
       .order("clock_in", { ascending: false })
@@ -70,7 +70,7 @@ export class AttendanceService {
       .from("attendance")
       .select(`
         *,
-        employee:employees(id, full_name, position, phone)
+        employee:employees(id, name, position, phone)
       `)
       .eq("id", id)
       .single()
@@ -124,7 +124,7 @@ export class AttendanceService {
       })
       .select(`
         *,
-        employee:employees(id, full_name, position)
+        employee:employees(id, name, position)
       `)
       .single()
 
@@ -159,7 +159,7 @@ export class AttendanceService {
       .eq("id", attendance.id)
       .select(`
         *,
-        employee:employees(id, full_name, position)
+        employee:employees(id, name, position)
       `)
       .single()
 
@@ -177,7 +177,7 @@ export class AttendanceService {
       .eq("id", id)
       .select(`
         *,
-        employee:employees(id, full_name, position)
+        employee:employees(id, name, position)
       `)
       .single()
 
@@ -191,7 +191,7 @@ export class AttendanceService {
 
     const [year, monthNum] = month.split("-")
     const startDate = `${year}-${monthNum}-01`
-    const endDate = new Date(parseInt(year), parseInt(monthNum), 0).toISOString().split("T")[0]
+    const endDate = new Date(Number.parseInt(year), Number.parseInt(monthNum), 0).toISOString().split("T")[0]
 
     const { data, error } = await supabase
       .from("attendance")

@@ -21,8 +21,8 @@ export async function GET(request: Request) {
       .select(
         `
         *,
-        employee:employees(id, full_name, position),
-        approver:users!leave_applications_approved_by_fkey(id, full_name)
+        employee:employees(id, name, position),
+        approver:users!leave_applications_approved_by_fkey(id, name)
       `,
       )
       .order("start_date", { ascending: false })
@@ -98,7 +98,12 @@ export async function POST(request: Request) {
         .single()
 
       if (balanceData) {
-        const balanceField = leave_type === "annual" ? "annual_balance" : leave_type === "medical" ? "medical_balance" : "replacement_balance"
+        const balanceField =
+          leave_type === "annual"
+            ? "annual_balance"
+            : leave_type === "medical"
+              ? "medical_balance"
+              : "replacement_balance"
 
         if (balanceData[balanceField] < total_days) {
           return NextResponse.json(

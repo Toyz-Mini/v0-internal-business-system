@@ -1,10 +1,10 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
-export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: Request, { params }: { params: { id: string } }) {
   try {
     const supabase = await createClient()
-    const { id } = await params
+    const { id } = params
 
     // Check authentication
     const {
@@ -20,8 +20,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       .select(
         `
         *,
-        employee:employees(id, full_name, position, phone, email),
-        approver:users!claims_approved_by_fkey(id, full_name)
+        employee:employees(id, name, position, phone, email),
+        approver:users!claims_approved_by_fkey(id, name)
       `,
       )
       .eq("id", id)
@@ -40,10 +40,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   }
 }
 
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   try {
     const supabase = await createClient()
-    const { id } = await params
+    const { id } = params
 
     // Check authentication
     const {
@@ -94,10 +94,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
 }
 
-export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: Request, { params }: { params: { id: string } }) {
   try {
     const supabase = await createClient()
-    const { id } = await params
+    const { id } = params
 
     // Check authentication
     const {

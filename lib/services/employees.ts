@@ -7,7 +7,7 @@ export interface EmployeeFilters {
 }
 
 export interface CreateEmployeeData {
-  full_name: string
+  name: string
   email?: string
   phone?: string
   position?: string
@@ -18,7 +18,7 @@ export interface CreateEmployeeData {
 }
 
 export interface UpdateEmployeeData {
-  full_name?: string
+  name?: string
   email?: string
   phone?: string
   position?: string
@@ -32,13 +32,10 @@ export class EmployeeService {
   async list(filters: EmployeeFilters = {}) {
     const supabase = await createClient()
 
-    let query = supabase
-      .from("employees")
-      .select("*")
-      .order("full_name")
+    let query = supabase.from("employees").select("*").order("name")
 
     if (filters.search) {
-      query = query.or(`full_name.ilike.%${filters.search}%,email.ilike.%${filters.search}%,phone.ilike.%${filters.search}%`)
+      query = query.or(`name.ilike.%${filters.search}%,email.ilike.%${filters.search}%,phone.ilike.%${filters.search}%`)
     }
 
     if (filters.position) {
@@ -59,11 +56,7 @@ export class EmployeeService {
   async getById(id: string) {
     const supabase = await createClient()
 
-    const { data, error } = await supabase
-      .from("employees")
-      .select("*")
-      .eq("id", id)
-      .single()
+    const { data, error } = await supabase.from("employees").select("*").eq("id", id).single()
 
     if (error) throw error
 
@@ -80,7 +73,7 @@ export class EmployeeService {
     const { data: employee, error } = await supabase
       .from("employees")
       .insert({
-        full_name: data.full_name,
+        name: data.name,
         email: data.email || null,
         phone: data.phone || null,
         position: data.position || null,
@@ -102,7 +95,7 @@ export class EmployeeService {
 
     const updateData: any = {}
 
-    if (data.full_name !== undefined) updateData.full_name = data.full_name
+    if (data.name !== undefined) updateData.name = data.name
     if (data.email !== undefined) updateData.email = data.email
     if (data.phone !== undefined) updateData.phone = data.phone
     if (data.position !== undefined) updateData.position = data.position
@@ -111,12 +104,7 @@ export class EmployeeService {
     if (data.hire_date !== undefined) updateData.hire_date = data.hire_date
     if (data.is_active !== undefined) updateData.is_active = data.is_active
 
-    const { data: employee, error } = await supabase
-      .from("employees")
-      .update(updateData)
-      .eq("id", id)
-      .select()
-      .single()
+    const { data: employee, error } = await supabase.from("employees").update(updateData).eq("id", id).select().single()
 
     if (error) throw error
 
@@ -126,11 +114,7 @@ export class EmployeeService {
   async delete(id: string) {
     const supabase = await createClient()
 
-    const { data: attendance } = await supabase
-      .from("attendance")
-      .select("id")
-      .eq("employee_id", id)
-      .limit(1)
+    const { data: attendance } = await supabase.from("attendance").select("id").eq("employee_id", id).limit(1)
 
     if (attendance && attendance.length > 0) {
       throw new Error("Cannot delete employee with attendance records. Please deactivate instead.")
@@ -148,7 +132,7 @@ export class EmployeeService {
 
     const [year, monthNum] = month.split("-")
     const startDate = `${year}-${monthNum}-01`
-    const lastDay = new Date(parseInt(year), parseInt(monthNum), 0).getDate()
+    const lastDay = new Date(Number.parseInt(year), Number.parseInt(monthNum), 0).getDate()
     const endDate = `${year}-${monthNum}-${lastDay}`
 
     const { data, error } = await supabase

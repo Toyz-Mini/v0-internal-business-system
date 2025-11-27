@@ -173,7 +173,7 @@ export class InventoryService {
       .from("ingredients")
       .update({
         current_stock: newStock,
-        cost_per_unit: data.cost_per_unit || ingredient.cost_per_unit
+        cost_per_unit: data.cost_per_unit || ingredient.cost_per_unit,
       })
       .eq("id", ingredientId)
 
@@ -206,18 +206,13 @@ export class InventoryService {
     }
 
     const previousStock = ingredient.current_stock
-    const newStock = data.type === "in"
-      ? previousStock + data.quantity
-      : previousStock - data.quantity
+    const newStock = data.type === "in" ? previousStock + data.quantity : previousStock - data.quantity
 
     if (newStock < 0) {
       throw new Error("Adjustment would result in negative stock")
     }
 
-    await supabase
-      .from("ingredients")
-      .update({ current_stock: newStock })
-      .eq("id", ingredientId)
+    await supabase.from("ingredients").update({ current_stock: newStock }).eq("id", ingredientId)
 
     await supabase.from("stock_logs").insert({
       ingredient_id: ingredientId,
@@ -233,14 +228,14 @@ export class InventoryService {
     return await this.getById(ingredientId)
   }
 
-  async getLogs(ingredientId: string, limit: number = 50) {
+  async getLogs(ingredientId: string, limit = 50) {
     const supabase = await createClient()
 
     const { data, error } = await supabase
       .from("stock_logs")
       .select(`
         *,
-        created_by_user:users!stock_logs_created_by_fkey(id, full_name)
+        created_by_user:users!stock_logs_created_by_fkey(id, name)
       `)
       .eq("ingredient_id", ingredientId)
       .order("created_at", { ascending: false })

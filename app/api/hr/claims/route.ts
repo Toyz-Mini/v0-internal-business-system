@@ -21,8 +21,8 @@ export async function GET(request: Request) {
       .select(
         `
         *,
-        employee:employees(id, full_name, position),
-        approver:users!claims_approved_by_fkey(id, full_name)
+        employee:employees(id, name, position),
+        approver:users!claims_approved_by_fkey(id, name)
       `,
       )
       .order("claim_date", { ascending: false })
