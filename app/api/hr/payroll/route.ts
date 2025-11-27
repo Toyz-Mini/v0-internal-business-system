@@ -2,17 +2,6 @@ import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import { startOfMonth, endOfMonth } from "date-fns"
 
-function calculateHourlyRate(salaryType: string, salaryRate: number): number {
-  if (salaryType === "hourly") {
-    return salaryRate
-  }
-  return salaryRate / 160 // Monthly divided by 160 hours
-}
-
-function calculateOTRate(hourlyRate: number): number {
-  return hourlyRate * 1.5
-}
-
 export async function GET(request: Request) {
   try {
     const supabase = await createClient()
@@ -44,61 +33,60 @@ export async function GET(request: Request) {
     const startDate = startOfMonth(new Date(year, monthNum - 1))
     const endDate = endOfMonth(new Date(year, monthNum - 1))
 
+    // Get all active employees
     const { data: employees, error: empError } = await supabase
       .from("employees")
-      .select("id, name, position, salary_type, salary_rate, is_active")
+      .select("id, full_name, position, salary_type, salary_rate, hourly_rate, ot_rate")
       .eq("is_active", true)
-      .order("name")
+      .order("full_name")
 
     if (empError) throw empError
 
+    // Get attendance records for the month
     const { data: attendanceRecords, error: attError } = await supabase
       .from("attendance")
-      .select("employee_id, total_hours, ot_hours, clock_in")
-      .gte("clock_in", startDate.toISOString())
-      .lte("clock_in", endDate.toISOString())
+      .select("employee_id, total_hours, ot_hours, date")
+      .gte("date", startDate.toISOString().split("T")[0])
+      .lte("date", endDate.toISOString().split("T")[0])
       .not("clock_out", "is", null)
 
     if (attError) throw attError
 
     // Calculate payroll for each employee
-    const payrollData =
-      employees?.map((emp) => {
-        const empAttendance = attendanceRecords?.filter((att) => att.employee_id === emp.id) || []
+    const payrollData = employees.map((emp) => {
+      const empAttendance = attendanceRecords.filter((att) => att.employee_id === emp.id)
 
-        const totalHours = empAttendance.reduce((sum, att) => sum + (Number(att.total_hours) || 0), 0)
-        const totalOtHours = empAttendance.reduce((sum, att) => sum + (Number(att.ot_hours) || 0), 0)
+      const totalHours = empAttendance.reduce((sum, att) => sum + (Number(att.total_hours) || 0), 0)
+      const totalOtHours = empAttendance.reduce((sum, att) => sum + (Number(att.ot_hours) || 0), 0)
 
-        const hourlyRate = calculateHourlyRate(emp.salary_type, emp.salary_rate)
-        const otRate = calculateOTRate(hourlyRate)
+      let baseSalary = 0
+      let otPay = 0
 
-        let baseSalary = 0
-        let otPay = 0
-
-        if (emp.salary_type === "hourly") {
-          baseSalary = totalHours * hourlyRate
-          otPay = totalOtHours * otRate
-        } else if (emp.salary_type === "monthly") {
-          baseSalary = emp.salary_rate || 0
-          otPay = totalOtHours * otRate
+      if (emp.salary_type === "hourly") {
+        baseSalary = totalHours * (emp.hourly_rate || 0)
+        otPay = totalOtHours * (emp.ot_rate || emp.hourly_rate * 1.5 || 0)
+      } else if (emp.salary_type === "monthly") {
+        baseSalary = emp.salary_rate || 0
+        // For monthly employees, OT is calculated based on hourly rate if provided
+        if (emp.hourly_rate > 0) {
+          otPay = totalOtHours * (emp.ot_rate || emp.hourly_rate * 1.5 || 0)
         }
+      }
 
-        return {
-          employee_id: emp.id,
-          employee_name: emp.name, // Use 'name' not 'full_name'
-          position: emp.position,
-          salary_type: emp.salary_type,
-          total_hours: totalHours,
-          total_ot_hours: totalOtHours,
-          hourly_rate: hourlyRate,
-          ot_rate: otRate,
-          base_salary: baseSalary,
-          ot_pay: otPay,
-          total_salary: baseSalary + otPay,
-          days_worked: empAttendance.length,
-          status: "pending",
-        }
-      }) || []
+      return {
+        employee_id: emp.id,
+        employee_name: emp.full_name,
+        position: emp.position,
+        salary_type: emp.salary_type,
+        total_hours: totalHours,
+        total_ot_hours: totalOtHours,
+        base_salary: baseSalary,
+        ot_pay: otPay,
+        total_salary: baseSalary + otPay,
+        days_worked: empAttendance.length,
+        status: "pending",
+      }
+    })
 
     // Calculate summary
     const summary = {
@@ -153,6 +141,9 @@ export async function POST(request: Request) {
     // 2. Generate pay slips
     // 3. Send notifications to employees
     // 4. Update payment status
+
+    // For now, we'll just return success
+    // You can extend this to create actual payroll records
 
     return NextResponse.json({
       success: true,

@@ -10,40 +10,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar, DollarSign, Download, FileText } from "lucide-react"
 import { toast } from "sonner"
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns"
-import { AppShell } from "@/components/layout/app-shell"
 
 interface Employee {
   id: string
   name: string
   position: string
-  salary_type: string // 'hourly' or 'monthly'
-  salary_rate: number
-  is_active: boolean
+  hourly_rate: number
+  ot_rate: number
+  status: string
 }
 
 interface PayrollSummary {
   employee_id: string
   employee_name: string
   position: string
-  salary_type: string
   total_hours: number
   total_ot_hours: number
   base_salary: number
   ot_pay: number
   total_salary: number
   status: "pending" | "processed" | "paid"
-}
-
-function calculateHourlyRate(salaryType: string, salaryRate: number): number {
-  if (salaryType === "hourly") {
-    return salaryRate
-  }
-  // For monthly salary, assume 160 working hours per month (8h x 20 days)
-  return salaryRate / 160
-}
-
-function calculateOTRate(hourlyRate: number): number {
-  return hourlyRate * 1.5
 }
 
 export default function PayrollPage() {
@@ -59,18 +45,15 @@ export default function PayrollPage() {
   }, [])
 
   useEffect(() => {
-    if (employees.length > 0) {
-      loadPayrollData()
-    }
-  }, [selectedMonth, employees])
+  }, [])
+
+  useEffect(() => {
+    loadPayrollData()
+  }, [selectedMonth])
 
   async function loadEmployees() {
     try {
-      const { data, error } = await supabase
-        .from("employees")
-        .select("id, name, position, salary_type, salary_rate, is_active")
-        .eq("is_active", true)
-        .order("name")
+      const { data, error } = await supabase.from("employees").select("*").eq("status", "active").order("name")
 
       if (error) throw error
 
@@ -96,7 +79,13 @@ export default function PayrollPage() {
           clock_in,
           clock_out,
           total_hours,
-          ot_hours
+          ot_hours,
+          employees (
+            name,
+            position,
+            hourly_rate,
+            ot_rate
+          )
         `)
         .gte("clock_in", startDate.toISOString())
         .lte("clock_in", endDate.toISOString())
@@ -110,6 +99,7 @@ export default function PayrollPage() {
         const empId = record.employee_id
         const existing = summary.get(empId)
 
+        // Safe null checks for all numeric values
         const recordHours = Number(record.total_hours) || 0
         const recordOtHours = Number(record.ot_hours) || 0
 
@@ -117,27 +107,22 @@ export default function PayrollPage() {
           existing.total_hours += recordHours
           existing.total_ot_hours += recordOtHours
         } else {
-          const employee = employees.find((e) => e.id === empId)
-          if (!employee) return
+          const employee = record.employees
+          if (!employee) return // Skip if employee data is missing
 
-          const hourlyRate = calculateHourlyRate(employee.salary_type, employee.salary_rate)
-          const otRate = calculateOTRate(hourlyRate)
-
-          let baseSalary = 0
-          if (employee.salary_type === "monthly") {
-            baseSalary = employee.salary_rate
-          } else {
-            baseSalary = recordHours * hourlyRate
-          }
-          const otPay = recordOtHours * otRate
+          const totalHours = recordHours
+          const otHours = recordOtHours
+          const hourlyRate = Number(employee.hourly_rate) || 0
+          const otRate = Number(employee.ot_rate) || 0
+          const baseSalary = totalHours * hourlyRate
+          const otPay = otHours * otRate
 
           summary.set(empId, {
             employee_id: empId,
             employee_name: employee.name || "Unknown",
             position: employee.position || "N/A",
-            salary_type: employee.salary_type || "monthly",
-            total_hours: recordHours,
-            total_ot_hours: recordOtHours,
+            total_hours: totalHours,
+            total_ot_hours: otHours,
             base_salary: baseSalary,
             ot_pay: otPay,
             total_salary: baseSalary + otPay,
@@ -148,16 +133,10 @@ export default function PayrollPage() {
 
       summary.forEach((value) => {
         const emp = employees.find((e) => e.id === value.employee_id)
-        if (!emp) return
+        const hourlyRate = Number(emp?.hourly_rate) || 0
+        const otRate = Number(emp?.ot_rate) || 0
 
-        const hourlyRate = calculateHourlyRate(emp.salary_type, emp.salary_rate)
-        const otRate = calculateOTRate(hourlyRate)
-
-        if (emp.salary_type === "monthly") {
-          value.base_salary = emp.salary_rate
-        } else {
-          value.base_salary = value.total_hours * hourlyRate
-        }
+        value.base_salary = value.total_hours * hourlyRate
         value.ot_pay = value.total_ot_hours * otRate
         value.total_salary = value.base_salary + value.ot_pay
       })
@@ -207,14 +186,11 @@ export default function PayrollPage() {
   function exportPayroll() {
     try {
       const csv = [
-        ["Employee Name", "Position", "Salary Type", "Hours", "OT Hours", "Base Salary", "OT Pay", "Total Salary"].join(
-          ",",
-        ),
+        ["Employee Name", "Position", "Hours", "OT Hours", "Base Salary", "OT Pay", "Total Salary"].join(","),
         ...payrollData.map((row) =>
           [
-            `"${row.employee_name}"`,
-            `"${row.position}"`,
-            row.salary_type,
+            row.employee_name,
+            row.position,
             row.total_hours.toFixed(2),
             row.total_ot_hours.toFixed(2),
             `BND ${row.base_salary.toFixed(2)}`,
@@ -242,160 +218,152 @@ export default function PayrollPage() {
   const totalOTHours = payrollData.reduce((sum, row) => sum + (Number(row.total_ot_hours) || 0), 0)
 
   return (
-    <AppShell title="Salary & Payroll">
-      <div className="space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="text-center md:text-left">
-            <h1 className="text-3xl font-bold tracking-tight">Salary & Payroll</h1>
-            <p className="text-muted-foreground">Manage employee salaries and payroll processing</p>
-          </div>
-          <div className="flex justify-center md:justify-end">
-            <Select value={selectedMonth} onValueChange={handleMonthChange}>
-              <SelectTrigger className="w-full md:w-[200px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {generateMonthOptions().map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+    <div className="container max-w-7xl mx-auto space-y-6 p-6">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="text-center md:text-left">
+          <h1 className="text-3xl font-bold tracking-tight">Salary & Payroll</h1>
+          <p className="text-muted-foreground">Manage employee salaries and payroll processing</p>
         </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="rounded-lg shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Payroll</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">BND {totalPayroll.toFixed(2)}</div>
-              <p className="text-xs text-muted-foreground mt-1">{payrollData.length} employees</p>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-lg shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Hours</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalHours.toFixed(1)}h</div>
-              <p className="text-xs text-muted-foreground mt-1">Regular hours worked</p>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-lg shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">OT Hours</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalOTHours.toFixed(1)}h</div>
-              <p className="text-xs text-muted-foreground mt-1">Overtime hours</p>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-lg shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Status</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                <Badge variant="secondary">Pending</Badge>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">Awaiting processing</p>
-            </CardContent>
-          </Card>
+        <div className="flex justify-center md:justify-end">
+          <Select value={selectedMonth} onValueChange={handleMonthChange}>
+            <SelectTrigger className="w-full md:w-[200px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {generateMonthOptions().map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
+      </div>
 
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="rounded-lg shadow-sm">
-          <CardHeader className="space-y-1">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <CardTitle className="text-xl font-bold">Payroll Summary</CardTitle>
-                <CardDescription className="mt-1">
-                  Salary breakdown for {format(new Date(selectedMonth + "-01"), "MMMM yyyy")}
-                </CardDescription>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Button variant="outline" onClick={exportPayroll} className="w-full sm:w-auto bg-transparent">
-                  <Download className="mr-2 h-4 w-4" />
-                  Export CSV
-                </Button>
-                <Button onClick={processPayroll} disabled={processingPayroll} className="w-full sm:w-auto">
-                  {processingPayroll ? "Processing..." : "Process Payroll"}
-                </Button>
-              </div>
-            </div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Payroll</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="text-center space-y-2">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                  <p className="text-sm text-muted-foreground">Loading payroll data...</p>
-                </div>
-              </div>
-            ) : payrollData.length === 0 ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="text-center space-y-2">
-                  <FileText className="h-12 w-12 text-muted-foreground mx-auto" />
-                  <p className="text-muted-foreground font-medium">No attendance records found</p>
-                  <p className="text-sm text-muted-foreground">Try selecting a different month</p>
-                </div>
-              </div>
-            ) : (
-              <div className="rounded-md border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="font-semibold">Employee</TableHead>
-                      <TableHead className="font-semibold">Position</TableHead>
-                      <TableHead className="font-semibold">Type</TableHead>
-                      <TableHead className="text-right font-semibold">Hours</TableHead>
-                      <TableHead className="text-right font-semibold">OT Hours</TableHead>
-                      <TableHead className="text-right font-semibold">Base Salary</TableHead>
-                      <TableHead className="text-right font-semibold">OT Pay</TableHead>
-                      <TableHead className="text-right font-semibold">Total Salary</TableHead>
-                      <TableHead className="font-semibold">Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {payrollData.map((row) => (
-                      <TableRow key={row.employee_id}>
-                        <TableCell className="font-medium">{row.employee_name}</TableCell>
-                        <TableCell className="text-muted-foreground">{row.position}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="capitalize">
-                            {row.salary_type}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">{row.total_hours.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">{row.total_ot_hours.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">BND {row.base_salary.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">BND {row.ot_pay.toFixed(2)}</TableCell>
-                        <TableCell className="text-right font-bold text-primary">
-                          BND {row.total_salary.toFixed(2)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary" className="capitalize">
-                            {row.status}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
+            <div className="text-2xl font-bold">BND {totalPayroll.toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground mt-1">{payrollData.length} employees</p>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-lg shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Hours</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalHours.toFixed(1)}h</div>
+            <p className="text-xs text-muted-foreground mt-1">Regular hours worked</p>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-lg shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">OT Hours</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalOTHours.toFixed(1)}h</div>
+            <p className="text-xs text-muted-foreground mt-1">Overtime hours</p>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-lg shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Status</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              <Badge variant="secondary">Pending</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Awaiting processing</p>
           </CardContent>
         </Card>
       </div>
-    </AppShell>
+
+      <Card className="rounded-lg shadow-sm">
+        <CardHeader className="space-y-1">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <CardTitle className="text-xl font-bold">Payroll Summary</CardTitle>
+              <CardDescription className="mt-1">
+                Salary breakdown for {format(new Date(selectedMonth + "-01"), "MMMM yyyy")}
+              </CardDescription>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button variant="outline" onClick={exportPayroll} className="w-full sm:w-auto bg-transparent">
+                <Download className="mr-2 h-4 w-4" />
+                Export CSV
+              </Button>
+              <Button onClick={processPayroll} disabled={processingPayroll} className="w-full sm:w-auto">
+                {processingPayroll ? "Processing..." : "Process Payroll"}
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center space-y-2">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                <p className="text-sm text-muted-foreground">Loading payroll data...</p>
+              </div>
+            </div>
+          ) : payrollData.length === 0 ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center space-y-2">
+                <FileText className="h-12 w-12 text-muted-foreground mx-auto" />
+                <p className="text-muted-foreground font-medium">No attendance records found</p>
+                <p className="text-sm text-muted-foreground">Try selecting a different month</p>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-md border overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="font-semibold">Employee</TableHead>
+                    <TableHead className="font-semibold">Position</TableHead>
+                    <TableHead className="text-right font-semibold">Hours</TableHead>
+                    <TableHead className="text-right font-semibold">OT Hours</TableHead>
+                    <TableHead className="text-right font-semibold">Base Salary</TableHead>
+                    <TableHead className="text-right font-semibold">OT Pay</TableHead>
+                    <TableHead className="text-right font-semibold">Total Salary</TableHead>
+                    <TableHead className="font-semibold">Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {payrollData.map((row) => (
+                    <TableRow key={row.employee_id}>
+                      <TableCell className="font-medium">{row.employee_name}</TableCell>
+                      <TableCell className="text-muted-foreground">{row.position}</TableCell>
+                      <TableCell className="text-right">{row.total_hours.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">{row.total_ot_hours.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">BND {row.base_salary.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">BND {row.ot_pay.toFixed(2)}</TableCell>
+                      <TableCell className="text-right font-bold text-primary">
+                        BND {row.total_salary.toFixed(2)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="capitalize">
+                          {row.status}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   )
 }
