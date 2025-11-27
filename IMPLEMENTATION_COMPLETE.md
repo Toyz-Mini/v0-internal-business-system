@@ -97,7 +97,7 @@ All implementations include:
 
 ### Option 1: Fresh Database (Recommended)
 
-```bash
+\`\`\`bash
 # 1. Apply complete setup
 psql -h your-host -U postgres -d your-db -f scripts/000_complete_setup.sql
 
@@ -106,7 +106,7 @@ psql -h your-host -U postgres -d your-db -f scripts/011_missing_functions.sql
 psql -h your-host -U postgres -d your-db -f scripts/012_schema_fixes.sql
 psql -h your-host -U postgres -d your-db -f scripts/013_hr_tables.sql
 psql -h your-host -U postgres -d your-db -f scripts/014_storage_buckets.sql
-```
+\`\`\`
 
 ### Option 2: Using Supabase Dashboard
 
@@ -118,12 +118,12 @@ psql -h your-host -U postgres -d your-db -f scripts/014_storage_buckets.sql
 ### Option 3: Existing Database
 
 If you already have tables from 001-010, skip 000 and apply only:
-```bash
+\`\`\`bash
 psql -h your-host -U postgres -d your-db -f scripts/011_missing_functions.sql
 psql -h your-host -U postgres -d your-db -f scripts/012_schema_fixes.sql
 psql -h your-host -U postgres -d your-db -f scripts/013_hr_tables.sql
 psql -h your-host -U postgres -d your-db -f scripts/014_storage_buckets.sql
-```
+\`\`\`
 
 ---
 
@@ -131,7 +131,7 @@ psql -h your-host -U postgres -d your-db -f scripts/014_storage_buckets.sql
 
 ### Test Claims API
 
-```bash
+\`\`\`bash
 # Create a claim
 curl -X POST http://localhost:3000/api/hr/claims \
   -H "Authorization: Bearer YOUR_TOKEN" \
@@ -153,11 +153,11 @@ curl -X PATCH http://localhost:3000/api/hr/claims/{id} \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"status": "approved"}'
-```
+\`\`\`
 
 ### Test Leave API
 
-```bash
+\`\`\`bash
 # Submit leave
 curl -X POST http://localhost:3000/api/hr/leave \
   -H "Authorization: Bearer YOUR_TOKEN" \
@@ -170,19 +170,19 @@ curl -X POST http://localhost:3000/api/hr/leave \
     "total_days": 3,
     "reason": "Family vacation"
   }'
-```
+\`\`\`
 
 ### Test Payroll API
 
-```bash
+\`\`\`bash
 # Get payroll for December 2025
 curl http://localhost:3000/api/hr/payroll?month=2025-12 \
   -H "Authorization: Bearer YOUR_TOKEN"
-```
+\`\`\`
 
 ### Test Order Void/Refund
 
-```bash
+\`\`\`bash
 # Void order
 curl -X POST http://localhost:3000/api/orders/{order-id}/void \
   -H "Authorization: Bearer YOUR_TOKEN" \
@@ -194,19 +194,19 @@ curl -X POST http://localhost:3000/api/orders/{order-id}/refund \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"refund_amount": 50.00, "refund_reason": "Item defect"}'
-```
+\`\`\`
 
 ---
 
 ## 📊 Build Status
 
-```bash
+\`\`\`bash
 ✓ Compiled successfully
 ✓ 34 routes generated
 ✓ 11 new API endpoints
 ✓ 0 build errors
 ✓ Production ready
-```
+\`\`\`
 
 ### All API Routes Available:
 
