@@ -13,7 +13,7 @@ The following files were created and need to be committed:
 
 ### Option 1: Using Git Command Line
 
-```bash
+\`\`\`bash
 # 1. Navigate to your project
 cd /path/to/v0-internal-business-system
 
@@ -42,7 +42,7 @@ Closes: Payroll dashboard backend requirements"
 
 # 5. Push to GitHub
 git push origin feat/backend/payroll-fix
-```
+\`\`\`
 
 ### Option 2: Using GitHub Desktop
 
@@ -70,12 +70,12 @@ After pushing, create PR at:
 https://github.com/Toyz-Mini/v0-internal-business-system/compare/main...feat/backend/payroll-fix
 
 **PR Title:** 
-```
+\`\`\`
 fix(payroll): add employee fields and verify payroll endpoints
-```
+\`\`\`
 
 **PR Description:**
-```
+\`\`\`
 ## Summary
 Added missing employee fields required for V0 payroll dashboard functionality.
 
@@ -107,28 +107,28 @@ All changes are backward compatible and use IF NOT EXISTS checks.
 - [ ] Test V0 dashboard
 
 Closes: Payroll dashboard backend requirements
-```
+\`\`\`
 
 ## Alternative: Direct Commit to Main (if you have access)
 
-```bash
+\`\`\`bash
 git checkout main
 git pull origin main
 git add scripts/015_add_employee_fields.sql sample_payroll_november_2025.json PAYROLL_VERIFICATION_REPORT.md PAYROLL_FIX_SUMMARY.md
 git commit -m "fix(payroll): add employee fields and verify payroll endpoints"
 git push origin main
-```
+\`\`\`
 
 ## Verify Files Exist
 
 Before committing, verify the files are in your local directory:
 
-```bash
+\`\`\`bash
 ls -la scripts/015_add_employee_fields.sql
 ls -la sample_payroll_november_2025.json
 ls -la PAYROLL_VERIFICATION_REPORT.md
 ls -la PAYROLL_FIX_SUMMARY.md
-```
+\`\`\`
 
 All files should exist and contain content.
 

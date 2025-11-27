@@ -16,7 +16,7 @@
 
 ### Cara 1: Guna Command Line (Terminal)
 
-```bash
+\`\`\`bash
 # 1. Pergi ke folder project
 cd /path/to/v0-internal-business-system
 
@@ -35,7 +35,7 @@ git commit -m "fix(payroll): add employee fields for V0 dashboard"
 
 # 6. Push ke GitHub
 git push origin feat/backend/payroll-fix
-```
+\`\`\`
 
 ### Cara 2: Guna GitHub Desktop (Senang)
 
@@ -71,7 +71,7 @@ git push origin feat/backend/payroll-fix
 
 ### "Permission denied" atau "Authentication failed"
 
-```bash
+\`\`\`bash
 # Check remote URL
 git remote -v
 
@@ -80,7 +80,7 @@ git remote set-url origin https://github.com/Toyz-Mini/v0-internal-business-syst
 
 # Cuba push lagi
 git push origin feat/backend/payroll-fix
-```
+\`\`\`
 
 ### "Files not found"
 
@@ -89,10 +89,10 @@ Files yang perlu ada:
 - ✅ `sample_payroll_november_2025.json`
 
 Check files ada tak:
-```bash
+\`\`\`bash
 ls -la scripts/015_add_employee_fields.sql
 ls -la sample_payroll_november_2025.json
-```
+\`\`\`
 
 Kalau takde, files tu dah hilang. Tapi **DATABASE DAH UPDATE**, so migration dah jalan. Yang perlu push hanya file SQL untuk documentation.
 
