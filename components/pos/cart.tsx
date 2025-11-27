@@ -37,7 +37,6 @@ interface CartProps {
   onClearCart: () => void
   cashierId?: string
   onOrderComplete?: () => void
-  userRole?: string
 }
 
 export function Cart({
@@ -52,7 +51,6 @@ export function Cart({
   onClearCart,
   cashierId,
   onOrderComplete,
-  userRole = "cashier",
 }: CartProps) {
   const [showPayment, setShowPayment] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
@@ -77,6 +75,8 @@ export function Cart({
   const [submitError, setSubmitError] = useState<string | null>(null)
 
   const quickAmounts = [10, 20, 50, 100]
+
+  const maxRetries = 3 // Declare maxRetries variable
 
   const receiptRef = useRef<HTMLDivElement>(null)
   const [receiptSettings, setReceiptSettings] = useState<any>(null)
@@ -164,10 +164,7 @@ export function Cart({
   }
 
   const handleCheckout = async () => {
-    if (items.length === 0) {
-      setSubmitError("Keranjang kosong. Sila tambah item terlebih dahulu.")
-      return
-    }
+    if (items.length === 0) return
 
     if (!networkStatus.isOnline) {
       setSubmitError("Tiada sambungan internet. Sila cuba semula.")
@@ -180,6 +177,7 @@ export function Cart({
       return
     }
 
+    // Validate split payment
     if (paymentMethod === "split" && splitRemaining > 0.01) {
       setSubmitError("Sila lengkapkan split payment")
       return
@@ -189,104 +187,182 @@ export function Cart({
     setIsProcessing(true)
     setSubmitError(null)
 
-    try {
-      let customerId = selectedCustomer?.id || null
+    let customerId = selectedCustomer?.id || null
+    if (customerPhone && !selectedCustomer) {
+      const fullPhone = `${customerCountryCode}${customerPhone}`
+      const supabase = createClient()
+      const { data: newCustomer, error: customerError } = await supabase
+        .from("customers")
+        .insert({
+          name: `Customer ${fullPhone}`,
+          phone: fullPhone,
+          tags: [],
+          order_count: 0,
+          total_spent: 0,
+        })
+        .select()
+        .single()
 
-      if (customerPhone && !selectedCustomer) {
-        const fullPhone = `${customerCountryCode}${customerPhone}`
+      if (!customerError && newCustomer) {
+        customerId = newCustomer.id
+      }
+    }
+
+    const orderNum = `ORD-${Date.now().toString(36).toUpperCase()}`
+
+    let attempt = 0
+
+    while (attempt < maxRetries) {
+      try {
         const supabase = createClient()
-        const { data: newCustomer, error: customerError } = await supabase
-          .from("customers")
+        const { data: order, error: orderError } = await supabase
+          .from("orders")
           .insert({
-            name: `Customer ${fullPhone}`,
-            phone: fullPhone,
-            tags: [],
-            order_count: 0,
-            total_spent: 0,
+            order_number: orderNum,
+            customer_id: customerId,
+            cashier_id: cashierId,
+            source_type: sourceType,
+            customer_phone: customerPhone || null,
+            customer_country_code: customerCountryCode,
+            subtotal,
+            discount_amount: discountAmount,
+            discount_type: discountType,
+            total,
+            payment_method: paymentMethod,
+            payment_status: "paid",
+            split_payments: paymentMethod === "split" ? splitPayments : null,
+            notes: orderNotes || null,
           })
-          .select()
+          .select("*, cashier:users(*), customer:customers(*)")
           .single()
 
-        if (!customerError && newCustomer) {
-          customerId = newCustomer.id
-        }
-      }
+        if (orderError) throw orderError
 
-      const orderData = {
-        customer_id: customerId,
-        employee_id: cashierId,
-        order_type: sourceType === "gomamam" ? "delivery" : "takeaway",
-        items: items.map((item) => ({
+        const orderItems = items.map((item) => ({
+          order_id: order.id,
           product_id: item.product.id,
           product_name: item.product.name,
           quantity: item.quantity,
           unit_price: item.product.price,
-          modifiers: item.modifiers.length > 0 ? item.modifiers : undefined,
-          notes: item.notes || undefined,
-        })),
-        payment_method: paymentMethod,
-        notes: orderNotes || undefined,
-        discount_amount: discountAmount > 0 ? discountAmount : undefined,
+          modifiers: item.modifiers,
+          subtotal: calculateItemTotal(item),
+          notes: item.notes || null,
+          discount_amount: item.discount_amount || null,
+          discount_type: item.discount_type || null,
+        }))
+
+        const { data: insertedItems, error: itemsError } = await supabase
+          .from("order_items")
+          .insert(orderItems)
+          .select()
+
+        if (itemsError) throw itemsError
+
+        for (const item of items) {
+          const { data: recipes } = await supabase
+            .from("recipes")
+            .select("*, ingredient:ingredients(*)")
+            .eq("product_id", item.product.id)
+
+          if (recipes) {
+            for (const recipe of recipes) {
+              const deductQty = recipe.qty_per_unit * item.quantity
+
+              const { data: currentIngredient } = await supabase
+                .from("ingredients")
+                .select("current_stock, updated_at")
+                .eq("id", recipe.ingredient_id)
+                .single()
+
+              if (!currentIngredient) continue
+
+              const newStock = Math.max(0, currentIngredient.current_stock - deductQty)
+
+              const { error: stockError } = await supabase
+                .from("ingredients")
+                .update({
+                  current_stock: newStock,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", recipe.ingredient_id)
+                .eq("updated_at", currentIngredient.updated_at)
+
+              if (stockError) {
+                console.warn("[v0] Stock update conflict, retrying...")
+                throw new Error("STOCK_CONFLICT")
+              }
+
+              await supabase.from("stock_logs").insert({
+                ingredient_id: recipe.ingredient_id,
+                type: "out",
+                quantity: deductQty,
+                previous_stock: currentIngredient.current_stock,
+                new_stock: newStock,
+                reference_type: "order",
+                reference_id: order.id,
+                notes: `Order ${orderNum}`,
+                created_by: cashierId || null,
+              })
+            }
+          }
+        }
+
+        if (selectedCustomer) {
+          await supabase
+            .from("customers")
+            .update({
+              order_count: selectedCustomer.order_count + 1,
+              total_spent: selectedCustomer.total_spent + total,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", selectedCustomer.id)
+        }
+
+        const orderWithItems = {
+          ...order,
+          items: insertedItems,
+        }
+        setCompletedOrder(orderWithItems)
+
+        setOrderNumber(orderNum)
+        setShowPayment(false)
+        setShowSuccess(true)
+
+        if (receiptSettings?.auto_print) {
+          setTimeout(() => handlePrint(), 500)
+        }
+
+        setTimeout(() => {
+          setShowSuccess(false)
+          onClearCart()
+          setAmountReceived("")
+          setDiscountType(null)
+          setDiscountValue(0)
+          setOrderNotes("")
+          setSplitPayments([])
+          setCustomerPhone("")
+          setDetectedCustomer(null)
+          setCompletedOrder(null)
+          onOrderComplete?.()
+        }, 2000)
+        break
+      } catch (error: any) {
+        if (error.message === "STOCK_CONFLICT" && attempt < maxRetries - 1) {
+          attempt++
+          await new Promise((resolve) => setTimeout(resolve, 100 * attempt))
+          continue
+        }
+        if (error.message === "TIMEOUT") {
+          setSubmitError("Sambungan terlalu perlahan. Sila cuba semula.")
+          break
+        }
+        console.error("[v0] Checkout error:", error)
+        setSubmitError(error.message || "Ralat semasa checkout")
+        break
       }
-
-      const response = await fetch("/api/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(orderData),
-      })
-
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(result.details || result.error || "Gagal membuat order")
-      }
-
-      if (selectedCustomer) {
-        const supabase = createClient()
-        await supabase
-          .from("customers")
-          .update({
-            order_count: selectedCustomer.order_count + 1,
-            total_spent: selectedCustomer.total_spent + total,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", selectedCustomer.id)
-      }
-
-      const orderWithItems = {
-        ...result.data.order,
-        items: result.data.items,
-      }
-      setCompletedOrder(orderWithItems)
-      setOrderNumber(result.data.order.order_number)
-      setShowPayment(false)
-      setShowSuccess(true)
-
-      if (receiptSettings?.auto_print) {
-        setTimeout(() => handlePrint(), 500)
-      }
-
-      setTimeout(() => {
-        setShowSuccess(false)
-        onClearCart()
-        setAmountReceived("")
-        setDiscountType(null)
-        setDiscountValue(0)
-        setOrderNotes("")
-        setSplitPayments([])
-        setCustomerPhone("")
-        setDetectedCustomer(null)
-        setCompletedOrder(null)
-        onOrderComplete?.()
-      }, 2000)
-    } catch (error: any) {
-      console.error("[v0] Checkout error:", error)
-      setSubmitError(error.message || "Ralat semasa checkout")
-    } finally {
-      setIsProcessing(false)
     }
+
+    setIsProcessing(false)
   }
 
   useEffect(() => {

@@ -1,11 +1,9 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { AppShell } from "@/components/layout/app-shell"
-import { SalesDashboard } from "@/components/reports/sales-dashboard"
 import { AdvancedSalesReport } from "@/components/reports/advanced-sales-report"
 import { ProductPerformance } from "@/components/reports/product-performance"
 import { HourlySalesChart } from "@/components/reports/hourly-sales-chart"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { UserRole } from "@/lib/types"
 
 export default async function ReportsPage() {
@@ -24,10 +22,11 @@ export default async function ReportsPage() {
   const userRole = (userProfile?.role || "staff") as UserRole
   const userName = userProfile?.name || user.email || "User"
 
-  if (!["admin", "manager"].includes(userRole)) {
+  if (userRole === "staff") {
     redirect("/dashboard")
   }
 
+  // Get dates
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const tomorrow = new Date(today)
@@ -36,6 +35,7 @@ export default async function ReportsPage() {
   const weekAgo = new Date(today)
   weekAgo.setDate(weekAgo.getDate() - 7)
 
+  // Fetch data
   const [ordersResult, orderItemsResult, cashiersResult] = await Promise.all([
     supabase
       .from("orders")
@@ -44,7 +44,7 @@ export default async function ReportsPage() {
       .eq("payment_status", "paid")
       .order("created_at", { ascending: false }),
     supabase.from("order_items").select("*, order:orders(created_at)").gte("created_at", weekAgo.toISOString()),
-    supabase.from("users").select("id, name").in("role", ["admin", "manager", "cashier"]),
+    supabase.from("users").select("id, name").in("role", ["admin", "cashier"]),
   ])
 
   const todayOrders = (ordersResult.data || []).filter((o) => new Date(o.created_at) >= today)
@@ -53,29 +53,16 @@ export default async function ReportsPage() {
     <AppShell title="Reports" userRole={userRole} userName={userName}>
       <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-bold">Laporan Jualan</h2>
-          <p className="text-muted-foreground">Dashboard analisis jualan dan prestasi produk</p>
+          <h2 className="text-2xl font-bold">Sales Analytics</h2>
+          <p className="text-muted-foreground">View detailed sales reports with filters and export options</p>
         </div>
 
-        <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-            <TabsTrigger value="advanced">Laporan Lanjutan</TabsTrigger>
-          </TabsList>
+        <AdvancedSalesReport initialOrders={ordersResult.data || []} cashiers={cashiersResult.data || []} />
 
-          <TabsContent value="dashboard" className="space-y-6">
-            <SalesDashboard />
-          </TabsContent>
-
-          <TabsContent value="advanced" className="space-y-6">
-            <AdvancedSalesReport initialOrders={ordersResult.data || []} cashiers={cashiersResult.data || []} />
-
-            <div className="grid gap-6 lg:grid-cols-2">
-              <ProductPerformance orderItems={orderItemsResult.data || []} />
-              <HourlySalesChart orders={todayOrders} />
-            </div>
-          </TabsContent>
-        </Tabs>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <ProductPerformance orderItems={orderItemsResult.data || []} />
+          <HourlySalesChart orders={todayOrders} />
+        </div>
       </div>
     </AppShell>
   )

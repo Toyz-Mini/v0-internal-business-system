@@ -1,13 +1,12 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
-import { canAccessRoute } from "@/lib/permissions"
-import type { UserRole } from "@/lib/types"
 
 export async function updateSession(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!supabaseUrl || !supabaseAnonKey) {
+    // Allow request to proceed without auth check in v0 preview
     return NextResponse.next({ request })
   }
 
@@ -30,11 +29,13 @@ export async function updateSession(request: NextRequest) {
     },
   })
 
+  // Refresh session if expired
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const publicRoutes = ["/", "/auth/login", "/auth/sign-up", "/auth/sign-up-success", "/auth/error", "/access-denied"]
+  // Protected routes - redirect to login if not authenticated
+  const publicRoutes = ["/", "/auth/login", "/auth/sign-up", "/auth/sign-up-success", "/auth/error"]
   const isPublicRoute = publicRoutes.some((route) => request.nextUrl.pathname === route)
 
   if (!user && !isPublicRoute && !request.nextUrl.pathname.startsWith("/auth")) {
@@ -43,23 +44,11 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  // Redirect logged-in users away from auth pages
   if (user && request.nextUrl.pathname.startsWith("/auth")) {
     const url = request.nextUrl.clone()
     url.pathname = "/dashboard"
     return NextResponse.redirect(url)
-  }
-
-  if (user && !isPublicRoute) {
-    const { data: userProfile } = await supabase.from("users").select("role").eq("email", user.email).single()
-
-    const userRole = (userProfile?.role || "staff") as UserRole
-    const pathname = request.nextUrl.pathname
-
-    if (!canAccessRoute(userRole, pathname)) {
-      const url = request.nextUrl.clone()
-      url.pathname = "/access-denied"
-      return NextResponse.redirect(url)
-    }
   }
 
   return supabaseResponse

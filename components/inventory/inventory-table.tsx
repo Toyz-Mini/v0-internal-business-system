@@ -11,16 +11,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Pencil, Search, RefreshCw, PackageOpen } from "lucide-react"
+import { createClient } from "@/lib/supabase/client"
 import type { Ingredient, Supplier } from "@/lib/types"
 import { toast } from "sonner"
 
 interface InventoryTableProps {
   ingredients: (Ingredient & { supplier?: Supplier })[]
   suppliers: Supplier[]
-  userRole?: string
 }
 
-export function InventoryTable({ ingredients, suppliers, userRole = "admin" }: InventoryTableProps) {
+export function InventoryTable({ ingredients, suppliers }: InventoryTableProps) {
   const [search, setSearch] = useState("")
   const [editingItem, setEditingItem] = useState<Ingredient | null>(null)
   const [isUpdating, setIsUpdating] = useState(false)
@@ -33,34 +33,30 @@ export function InventoryTable({ ingredients, suppliers, userRole = "admin" }: I
     if (!editingItem) return
 
     setIsUpdating(true)
+    const supabase = createClient()
     const formData = new FormData(e.currentTarget)
 
     try {
-      const supplierIdValue = formData.get("supplier_id")
-      const response = await fetch(`/api/inventory/ingredients/${editingItem.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const { error } = await supabase
+        .from("ingredients")
+        .update({
           name: formData.get("name") as string,
           unit: formData.get("unit") as string,
           min_stock: Number(formData.get("min_stock")),
           cost_per_unit: Number(formData.get("cost_per_unit")),
-          supplier_id: supplierIdValue === "none" ? null : supplierIdValue,
-        }),
-      })
+          supplier_id: formData.get("supplier_id") || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", editingItem.id)
 
-      const data = await response.json()
+      if (error) throw error
 
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to update ingredient")
-      }
-
-      toast.success("Berjaya kemaskini ingredient")
+      toast.success("Ingredient updated successfully")
       setEditingItem(null)
       window.location.reload()
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error updating ingredient:", error)
-      toast.error(error.message || "Gagal kemaskini ingredient")
+      toast.error("Failed to update ingredient")
     } finally {
       setIsUpdating(false)
     }
@@ -161,22 +157,20 @@ export function InventoryTable({ ingredients, suppliers, userRole = "admin" }: I
                       {isLow ? <Badge variant="destructive">Low Stock</Badge> : <Badge variant="secondary">OK</Badge>}
                     </TableCell>
                     <TableCell>
-                      {["admin", "manager"].includes(userRole) && (
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleRecomputeSingle(item.id)}
-                            disabled={recomputingId === item.id}
-                            title="Recompute stock from logs"
-                          >
-                            <RefreshCw className={`h-4 w-4 ${recomputingId === item.id ? "animate-spin" : ""}`} />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => setEditingItem(item)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )}
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRecomputeSingle(item.id)}
+                          disabled={recomputingId === item.id}
+                          title="Recompute stock from logs"
+                        >
+                          <RefreshCw className={`h-4 w-4 ${recomputingId === item.id ? "animate-spin" : ""}`} />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => setEditingItem(item)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 )

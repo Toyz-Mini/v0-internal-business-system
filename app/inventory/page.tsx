@@ -25,7 +25,7 @@ export default async function InventoryPage() {
   const userRole = (userProfile?.role || "staff") as UserRole
   const userName = userProfile?.name || user.email || "User"
 
-  if (!["admin", "manager", "kitchen"].includes(userRole)) {
+  if (userRole !== "admin") {
     redirect("/dashboard")
   }
 
@@ -34,6 +34,12 @@ export default async function InventoryPage() {
     supabase.from("suppliers").select("*").eq("is_active", true).order("name"),
     supabase.from("stock_logs").select("id", { count: "exact", head: true }),
   ])
+
+  console.log("[v0] Ingredients query result:", {
+    data: ingredientsResult.data,
+    error: ingredientsResult.error,
+    count: ingredientsResult.data?.length || 0,
+  })
 
   const hasStockLogs = (stockLogsCount.count || 0) > 0
   const ingredients = ingredientsResult.data || []
@@ -47,19 +53,15 @@ export default async function InventoryPage() {
             <p className="text-muted-foreground">Manage your ingredients and stock levels</p>
           </div>
           <div className="flex gap-2 flex-wrap">
-            {["admin", "manager"].includes(userRole) && (
-              <>
-                <RecomputeStockButton hasStockLogs={hasStockLogs} />
-                <PurchaseOrdersDialog suppliers={suppliersResult.data || []} ingredients={ingredients} />
-                <StockLogsDialog />
-                <AddStockDialog />
-                <AddIngredientDialog suppliers={suppliersResult.data || []} />
-              </>
-            )}
+            <RecomputeStockButton hasStockLogs={hasStockLogs} />
+            <PurchaseOrdersDialog suppliers={suppliersResult.data || []} ingredients={ingredients} />
+            <StockLogsDialog />
+            <AddStockDialog />
+            <AddIngredientDialog suppliers={suppliersResult.data || []} />
           </div>
         </div>
 
-        <InventoryTable ingredients={ingredients} suppliers={suppliersResult.data || []} userRole={userRole} />
+        <InventoryTable ingredients={ingredients} suppliers={suppliersResult.data || []} />
 
         {ingredientsResult.error && (
           <div className="p-4 bg-destructive/10 text-destructive rounded-md">

@@ -54,44 +54,27 @@ export function OrderHistory({ open, onOpenChange, userId, userRole, voidWindowM
 
   const fetchOrders = async () => {
     setLoading(true)
+    const supabase = createClient()
 
-    try {
-      const response = await fetch("/api/orders?limit=100")
-      const result = await response.json()
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
 
-      if (response.ok && result.success) {
-        const supabase = createClient()
-        const ordersWithDetails = await Promise.all(
-          result.data.map(async (order: any) => {
-            const { data: itemsData } = await supabase
-              .from("order_items")
-              .select("*")
-              .eq("order_id", order.id)
+    const { data, error } = await supabase
+      .from("orders")
+      .select(`
+        *,
+        customer:customers(*),
+        cashier:users(*),
+        items:order_items(*)
+      `)
+      .gte("created_at", today.toISOString())
+      .order("created_at", { ascending: false })
+      .limit(100)
 
-            const { data: customerData } = order.customer_id
-              ? await supabase.from("customers").select("*").eq("id", order.customer_id).maybeSingle()
-              : { data: null }
-
-            const { data: cashierData } = order.employee_id
-              ? await supabase.from("users").select("*").eq("id", order.employee_id).maybeSingle()
-              : { data: null }
-
-            return {
-              ...order,
-              items: itemsData || [],
-              customer: customerData,
-              cashier: cashierData,
-            }
-          })
-        )
-
-        setOrders(ordersWithDetails)
-      }
-    } catch (error) {
-      console.error("Failed to fetch orders:", error)
-    } finally {
-      setLoading(false)
+    if (!error && data) {
+      setOrders(data)
     }
+    setLoading(false)
   }
 
   const canVoidOrder = (order: Order) => {

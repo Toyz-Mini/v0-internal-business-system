@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { MoreVertical, Search, Pencil, Trash2, Phone, History } from "lucide-react"
+import { createClient } from "@/lib/supabase/client"
 import type { Customer } from "@/lib/types"
 
 interface CustomersTableProps {
@@ -32,25 +33,18 @@ export function CustomersTable({ customers: initialCustomers }: CustomersTablePr
   )
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Adakah anda pasti mahu padam pelanggan ini?")) return
+    if (!confirm("Are you sure you want to delete this customer?")) return
 
     setIsLoading(true)
+    const supabase = createClient()
 
     try {
-      const response = await fetch(`/api/customers/${id}`, {
-        method: "DELETE",
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || "Gagal padam pelanggan")
-      }
-
+      const { error } = await supabase.from("customers").delete().eq("id", id)
+      if (error) throw error
       setCustomers((prev) => prev.filter((c) => c.id !== id))
-    } catch (error: any) {
+    } catch (error) {
       console.error("Delete error:", error)
-      alert(error.message || "Gagal padam pelanggan")
+      alert("Failed to delete customer")
     } finally {
       setIsLoading(false)
     }
@@ -61,29 +55,26 @@ export function CustomersTable({ customers: initialCustomers }: CustomersTablePr
     if (!editingCustomer) return
 
     setIsLoading(true)
+    const supabase = createClient()
     const formData = new FormData(e.currentTarget)
 
     try {
       const tagsInput = formData.get("tags") as string
       const tags = tagsInput ? tagsInput.split(",").map((t) => t.trim()) : []
 
-      const response = await fetch(`/api/customers/${editingCustomer.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const { error } = await supabase
+        .from("customers")
+        .update({
           name: formData.get("name") as string,
           phone: formData.get("phone") as string,
           email: formData.get("email") as string,
           tags,
           notes: formData.get("notes") as string,
-        }),
-      })
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", editingCustomer.id)
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || "Gagal kemaskini pelanggan")
-      }
+      if (error) throw error
 
       setCustomers((prev) =>
         prev.map((c) =>
@@ -100,9 +91,9 @@ export function CustomersTable({ customers: initialCustomers }: CustomersTablePr
         ),
       )
       setEditingCustomer(null)
-    } catch (error: any) {
+    } catch (error) {
       console.error("Update error:", error)
-      alert(error.message || "Gagal kemaskini pelanggan")
+      alert("Failed to update customer")
     } finally {
       setIsLoading(false)
     }

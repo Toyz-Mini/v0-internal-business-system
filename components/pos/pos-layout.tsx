@@ -295,7 +295,6 @@ export function POSLayout({
                   onClearCart={clearCart}
                   cashierId={userId}
                   onOrderComplete={() => setMobileCartOpen(false)}
-                  userRole={userRole}
                 />
               </SheetContent>
             </Sheet>
@@ -362,7 +361,6 @@ export function POSLayout({
           onUpdateItemDiscount={updateItemDiscount}
           onClearCart={clearCart}
           cashierId={userId}
-          userRole={userRole}
         />
       </aside>
 
