@@ -21,9 +21,7 @@ export function useSubmitGuard<T extends (...args: any[]) => Promise<any>>(
     async (...args: Parameters<T>) => {
       const now = Date.now()
 
-      // Prevent double-tap
       if (isProcessing || now - lastSubmitRef.current < minDelay) {
-        console.log("[v0] Submit blocked - already processing or too soon")
         return
       }
 

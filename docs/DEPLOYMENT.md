@@ -1,149 +1,97 @@
-# Deployment Guide
+# Deployment Guide - AbangBob Ayam Gunting System
+
+This guide provides comprehensive instructions for deploying the AbangBob Ayam Gunting internal management system to production on Vercel.
+
+## Table of Contents
+
+- [Prerequisites](#prerequisites)
+- [Environment Variables](#environment-variables)
+- [Database Setup](#database-setup)
+- [Vercel Deployment](#vercel-deployment)
+- [Post-Deployment](#post-deployment)
+- [Custom Domain](#custom-domain)
+- [Troubleshooting](#troubleshooting)
+
+---
 
 ## Prerequisites
 
-- Vercel account
-- Supabase project
-- Environment variables ready
+Before deploying, ensure you have:
 
-## Deployment Steps
+1. **Supabase Project**
+   - Create a free project at [supabase.com](https://supabase.com)
+   - Note your project URL and anon key
 
-### 1. Database Setup
+2. **Vercel Account**
+   - Sign up at [vercel.com](https://vercel.com)
+   - Install Vercel CLI (optional): `npm install -g vercel`
 
-Run SQL scripts in order:
+3. **Git Repository**
+   - Push your code to GitHub, GitLab, or Bitbucket
 
-\`\`\`bash
-# In Supabase SQL Editor, run:
-scripts/001_create_tables.sql
-scripts/002_rls_policies.sql
-scripts/003_seed_data.sql
-scripts/004_create_functions.sql
-scripts/008_performance_indexes.sql
-scripts/009_audit_logs.sql
-\`\`\`
+---
 
-### 2. Environment Variables
+## Environment Variables
 
-Set in Vercel dashboard:
+### Required Variables
 
-\`\`\`env
-NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
-SUPABASE_SERVICE_ROLE_KEY=eyJ...
-\`\`\`
+You **must** configure these environment variables in Vercel:
 
-### 3. Deploy to Vercel
+```bash
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+```
 
-Option A: Via v0 UI
-- Click "Publish" button
+### How to Get Supabase Credentials
 
-Option B: Via CLI
-\`\`\`bash
-vercel deploy --prod
-\`\`\`
+1. Go to your Supabase project dashboard
+2. Navigate to **Settings** → **API**
+3. Copy:
+   - **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`
+   - **anon public** key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
-### 4. Post-Deployment Checks
+---
 
-1. Test login with admin credentials
-2. Verify POS can create orders
-3. Check stock deduction works
-4. Test attendance clock in/out
+## Database Setup
 
-## Rollback Plan
+### Step 1: Run Migrations
 
-### Code Rollback
+Execute the SQL migration files in order in your Supabase SQL Editor.
 
-\`\`\`bash
-# Via Vercel dashboard
-# Go to Deployments → Select previous → Promote to Production
+### Step 2: Configure Storage
 
-# Or via CLI
-vercel rollback
-\`\`\`
+1. Go to **Storage** in Supabase dashboard
+2. Create a new bucket named `product-images`
+3. Set bucket to **Public** access
 
-### Database Rollback
+### Step 3: Create First Admin User
 
-For each migration, create a down migration:
+1. Go to **Authentication** → **Users** in Supabase
+2. Click **Add user** → **Create new user**
+3. After creation, go to **Table Editor** → **users** table
+4. Set user `role` to `admin`
 
-\`\`\`sql
--- Example: rollback audit_logs
-DROP TRIGGER IF EXISTS audit_order_changes_trigger ON orders;
-DROP TRIGGER IF EXISTS audit_stock_changes_trigger ON stock_logs;
-DROP FUNCTION IF EXISTS audit_order_changes();
-DROP FUNCTION IF EXISTS log_audit_event();
-DROP TABLE IF EXISTS audit_logs;
-\`\`\`
+---
 
-## Safe Migration Strategy
+## Vercel Deployment
 
-### Up Migration
+### Deploy via Vercel Dashboard
 
-1. Create new migration file: `scripts/0XX_feature_name.sql`
-2. Test in staging/development
-3. Run in production during low-traffic
-4. Verify application still works
+1. Go to [vercel.com/new](https://vercel.com/new)
+2. Import your Git repository
+3. Add environment variables
+4. Click **Deploy**
 
-### Down Migration
+---
 
-1. Create rollback file: `scripts/0XX_feature_name_down.sql`
-2. Keep ready for emergency rollback
-3. Test rollback procedure in staging
+## Security Checklist
 
-## Staging Environment
+- [ ] All environment variables are set
+- [ ] RLS policies are enabled on all tables
+- [ ] Admin passwords are strong
+- [ ] SSL certificate is active
 
-### Setup Staging
+---
 
-1. Create separate Supabase project for staging
-2. Deploy to Vercel preview branch
-3. Use staging env vars
-
-\`\`\`env
-# .env.staging
-NEXT_PUBLIC_SUPABASE_URL=https://staging-xxx.supabase.co
-\`\`\`
-
-### Testing in Staging
-
-1. Run all smoke tests
-2. Test with dummy data
-3. Verify integrations work
-4. Load test if needed
-
-## Monitoring
-
-### Vercel Analytics
-
-- Enable Web Vitals monitoring
-- Set up alerts for error spikes
-
-### Supabase Dashboard
-
-- Monitor database performance
-- Check auth logs for issues
-- Review API request counts
-
-## Adding New Staff
-
-1. Go to Supabase Dashboard → Authentication → Users
-2. Click "Add user" → Enter email/password
-3. In SQL Editor, run:
-
-\`\`\`sql
-INSERT INTO public.users (id, email, name, role, is_active)
-VALUES (
-  'USER_ID_FROM_AUTH',
-  'new@email.com',
-  'Staff Name',
-  'cashier', -- or 'admin', 'staff'
-  true
-);
-
-INSERT INTO public.employees (user_id, name, email, position, salary_rate, salary_type)
-VALUES (
-  'USER_ID_FROM_AUTH',
-  'Staff Name',
-  'new@email.com',
-  'Cashier',
-  50.00,
-  'hourly'
-);
+**Last Updated:** 2025-11-27

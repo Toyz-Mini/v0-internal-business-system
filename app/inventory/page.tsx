@@ -35,12 +35,6 @@ export default async function InventoryPage() {
     supabase.from("stock_logs").select("id", { count: "exact", head: true }),
   ])
 
-  console.log("[v0] Ingredients query result:", {
-    data: ingredientsResult.data,
-    error: ingredientsResult.error,
-    count: ingredientsResult.data?.length || 0,
-  })
-
   const hasStockLogs = (stockLogsCount.count || 0) > 0
   const ingredients = ingredientsResult.data || []
 
