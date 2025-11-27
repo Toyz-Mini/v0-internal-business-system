@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { createClient } from "@/lib/supabase/client"
 import { AppShell } from "@/components/layout/app-shell"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -60,22 +59,21 @@ export default function ModifiersPage() {
   const [modifiers, setModifiers] = useState<{ name: string; price_adjustment: string; is_active: boolean }[]>([])
 
   const fetchData = useCallback(async () => {
-    const supabase = createClient()
+    try {
+      const response = await fetch('/api/modifier-groups')
+      const result = await response.json()
 
-    const { data: groupsData } = await supabase.from("modifier_groups").select("*").order("name")
-
-    if (groupsData) {
-      const { data: modifiersData } = await supabase.from("modifiers").select("*").order("name")
-
-      const groupsWithModifiers = groupsData.map((group) => ({
-        ...group,
-        modifiers: modifiersData?.filter((mod) => mod.group_id === group.id) || [],
-      }))
-
-      setGroups(groupsWithModifiers)
+      if (result.success) {
+        setGroups(result.data)
+      } else {
+        toast({ title: "Error", description: result.error, variant: "destructive" })
+      }
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" })
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
-  }, [])
+  }, [toast])
 
   useEffect(() => {
     fetchData()
@@ -136,51 +134,25 @@ export default function ModifiersPage() {
     }
 
     setSaving(true)
-    const supabase = createClient()
 
     try {
-      let groupId = selectedGroup?.id
+      const response = await fetch('/api/modifier-groups/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedGroup?.id,
+          name: formData.name,
+          is_required: formData.is_required,
+          max_selections: formData.max_selections,
+          modifiers: validModifiers
+        })
+      })
 
-      if (selectedGroup) {
-        // Update group
-        const { error } = await supabase
-          .from("modifier_groups")
-          .update({
-            name: formData.name,
-            is_required: formData.is_required,
-            max_selections: Number.parseInt(formData.max_selections),
-          })
-          .eq("id", selectedGroup.id)
+      const result = await response.json()
 
-        if (error) throw error
-      } else {
-        // Create group
-        const { data, error } = await supabase
-          .from("modifier_groups")
-          .insert({
-            name: formData.name,
-            is_required: formData.is_required,
-            max_selections: Number.parseInt(formData.max_selections),
-          })
-          .select()
-          .single()
-
-        if (error) throw error
-        groupId = data.id
+      if (!response.ok) {
+        throw new Error(result.error || result.details || 'Failed to save')
       }
-
-      await supabase.from("modifiers").delete().eq("group_id", groupId)
-
-      const { error: modifiersError } = await supabase.from("modifiers").insert(
-        validModifiers.map((mod) => ({
-          group_id: groupId,
-          name: mod.name,
-          price_adjustment: Number.parseFloat(mod.price_adjustment) || 0,
-          is_active: mod.is_active,
-        })),
-      )
-
-      if (modifiersError) throw modifiersError
 
       toast({ title: "Berjaya", description: selectedGroup ? "Modifier dikemaskini" : "Modifier ditambah" })
       setDialogOpen(false)
@@ -195,30 +167,26 @@ export default function ModifiersPage() {
   const handleDelete = async () => {
     if (!selectedGroup) return
 
-    const supabase = createClient()
     try {
-      // Check if used in products
-      const { data: productModifiers } = await supabase
-        .from("product_modifiers")
-        .select("id")
-        .eq("modifier_group_id", selectedGroup.id)
-        .limit(1)
+      const response = await fetch(`/api/modifier-groups/${selectedGroup.id}`, {
+        method: 'DELETE'
+      })
 
-      if (productModifiers && productModifiers.length > 0) {
-        toast({
-          title: "Error",
-          description: "Tidak boleh padam modifier yang digunakan dalam produk",
-          variant: "destructive",
-        })
+      const result = await response.json()
+
+      if (!response.ok) {
+        if (response.status === 409) {
+          toast({
+            title: "Error",
+            description: result.message || "Tidak boleh padam modifier yang digunakan dalam produk",
+            variant: "destructive",
+          })
+        } else {
+          throw new Error(result.error || result.details || 'Failed to delete')
+        }
         setDeleteDialogOpen(false)
         return
       }
-
-      await supabase.from("modifiers").delete().eq("group_id", selectedGroup.id)
-
-      const { error } = await supabase.from("modifier_groups").delete().eq("id", selectedGroup.id)
-
-      if (error) throw error
 
       toast({ title: "Berjaya", description: "Modifier dipadam" })
       setDeleteDialogOpen(false)
