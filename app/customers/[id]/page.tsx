@@ -2,14 +2,15 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
 import { AppShell } from "@/components/layout/app-shell"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { ArrowLeft, Phone, User, ShoppingBag, Calendar, DollarSign } from "lucide-react"
+import { ArrowLeft, Phone, User, ShoppingBag, Calendar, DollarSign, FileText, Edit, Save, X } from "lucide-react"
 import Link from "next/link"
+import { Textarea } from "@/components/ui/textarea"
+import { toast } from "sonner"
 
 interface Customer {
   id: string
@@ -19,6 +20,7 @@ interface Customer {
   total_spent: number
   last_visit: string | null
   created_at: string
+  notes: string | null
 }
 
 interface Order {
@@ -43,42 +45,31 @@ export default function CustomerDetailPage() {
   const [customer, setCustomer] = useState<Customer | null>(null)
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
+  const [editingNotes, setEditingNotes] = useState(false)
+  const [notes, setNotes] = useState("")
+  const [savingNotes, setSavingNotes] = useState(false)
 
   const fetchData = useCallback(async () => {
-    const supabase = createClient()
+    try {
+      const customerResponse = await fetch(`/api/customers/${params.id}`)
+      const customerData = await customerResponse.json()
 
-    // Fetch customer
-    const { data: customerData } = await supabase.from("customers").select("*").eq("id", params.id).single()
+      if (customerData.success && customerData.data) {
+        setCustomer(customerData.data)
+        setNotes(customerData.data.notes || "")
 
-    if (customerData) {
-      setCustomer(customerData)
+        const ordersResponse = await fetch(`/api/customers/${params.id}/orders`)
+        const ordersData = await ordersResponse.json()
 
-      // Fetch customer orders
-      const { data: ordersData } = await supabase
-        .from("orders")
-        .select(`
-          id,
-          order_number,
-          order_type,
-          total,
-          payment_method,
-          status,
-          created_at,
-          order_items (
-            id,
-            quantity,
-            unit_price,
-            product:products (name)
-          )
-        `)
-        .eq("customer_id", params.id)
-        .order("created_at", { ascending: false })
-        .limit(50)
-
-      setOrders(ordersData || [])
+        if (ordersData.success) {
+          setOrders(ordersData.data || [])
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch customer data:", error)
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
   }, [params.id])
 
   useEffect(() => {
@@ -100,6 +91,34 @@ export default function CustomerDetailPage() {
       hour: "2-digit",
       minute: "2-digit",
     })
+  }
+
+  const handleSaveNotes = async () => {
+    if (!customer) return
+
+    setSavingNotes(true)
+    try {
+      const response = await fetch(`/api/customers/${customer.id}/notes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Gagal simpan notes")
+      }
+
+      setCustomer({ ...customer, notes })
+      setEditingNotes(false)
+      toast.success("Notes berjaya dikemaskini")
+    } catch (error: any) {
+      console.error("Save notes error:", error)
+      toast.error(error.message || "Gagal simpan notes")
+    } finally {
+      setSavingNotes(false)
+    }
   }
 
   if (loading) {
@@ -207,6 +226,74 @@ export default function CustomerDetailPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Customer Notes */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Notes Pelanggan
+              </CardTitle>
+              {!editingNotes ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditingNotes(true)}
+                  className="bg-transparent"
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit
+                </Button>
+              ) : (
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setEditingNotes(false)
+                      setNotes(customer?.notes || "")
+                    }}
+                    disabled={savingNotes}
+                    className="bg-transparent"
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Batal
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleSaveNotes}
+                    disabled={savingNotes}
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    {savingNotes ? "Menyimpan..." : "Simpan"}
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {editingNotes ? (
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Tambah notes tentang pelanggan ini (contoh: VIP, suka pedas, alergi seafood)"
+                rows={4}
+                className="w-full"
+              />
+            ) : (
+              <div className="min-h-[100px]">
+                {customer?.notes ? (
+                  <p className="text-sm whitespace-pre-wrap">{customer.notes}</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">
+                    Tiada notes. Klik "Edit" untuk menambah notes tentang pelanggan ini.
+                  </p>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Order History */}
         <Card>

@@ -27,17 +27,17 @@ export default async function CustomersPage() {
     redirect("/dashboard")
   }
 
-  const { data: customers, count } = await supabase
-    .from("customers")
-    .select("*", { count: "exact" })
-    .order("total_spent", { ascending: false })
-    .limit(100)
+  const customersResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/customers`, {
+    cache: 'no-store'
+  });
+  const customersData = await customersResponse.json();
+  const customers = customersData.success ? customersData.data : [];
 
-  const totalCustomers = count || 0
-  const totalRevenue = customers?.reduce((sum, c) => sum + (c.total_spent || 0), 0) || 0
+  const totalCustomers = customers.length || 0
+  const totalRevenue = customers.reduce((sum: number, c: any) => sum + (c.total_spent || 0), 0) || 0
   const avgOrderValue =
-    totalCustomers > 0 ? totalRevenue / (customers?.reduce((sum, c) => sum + c.order_count, 0) || 1) : 0
-  const loyalCustomers = customers?.filter((c) => c.order_count >= 5).length || 0
+    totalCustomers > 0 ? totalRevenue / (customers.reduce((sum: number, c: any) => sum + c.order_count, 0) || 1) : 0
+  const loyalCustomers = customers.filter((c: any) => c.order_count >= 5).length || 0
 
   return (
     <AppShell title="Customers" userRole={userRole} userName={userName}>
