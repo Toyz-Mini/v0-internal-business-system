@@ -11,7 +11,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Pencil, Search, RefreshCw, PackageOpen } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
 import type { Ingredient, Supplier } from "@/lib/types"
 import { toast } from "sonner"
 
@@ -33,30 +32,34 @@ export function InventoryTable({ ingredients, suppliers }: InventoryTableProps) 
     if (!editingItem) return
 
     setIsUpdating(true)
-    const supabase = createClient()
     const formData = new FormData(e.currentTarget)
 
     try {
-      const { error } = await supabase
-        .from("ingredients")
-        .update({
+      const supplierIdValue = formData.get("supplier_id")
+      const response = await fetch(`/api/inventory/ingredients/${editingItem.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           name: formData.get("name") as string,
           unit: formData.get("unit") as string,
           min_stock: Number(formData.get("min_stock")),
           cost_per_unit: Number(formData.get("cost_per_unit")),
-          supplier_id: formData.get("supplier_id") || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", editingItem.id)
+          supplier_id: supplierIdValue === "none" ? null : supplierIdValue,
+        }),
+      })
 
-      if (error) throw error
+      const data = await response.json()
 
-      toast.success("Ingredient updated successfully")
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to update ingredient")
+      }
+
+      toast.success("Berjaya kemaskini ingredient")
       setEditingItem(null)
       window.location.reload()
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating ingredient:", error)
-      toast.error("Failed to update ingredient")
+      toast.error(error.message || "Gagal kemaskini ingredient")
     } finally {
       setIsUpdating(false)
     }

@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { PackagePlus } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
 import type { Supplier } from "@/lib/types"
 
 interface AddIngredientDialogProps {
@@ -25,24 +24,32 @@ export function AddIngredientDialog({ suppliers }: AddIngredientDialogProps) {
     setIsLoading(true)
 
     const formData = new FormData(e.currentTarget)
-    const supabase = createClient()
 
     try {
-      const { error } = await supabase.from("ingredients").insert({
-        name: formData.get("name") as string,
-        unit: formData.get("unit") as string,
-        current_stock: Number(formData.get("current_stock")) || 0,
-        min_stock: Number(formData.get("min_stock")) || 0,
-        cost_per_unit: Number(formData.get("cost_per_unit")) || 0,
-        supplier_id: formData.get("supplier_id") || null,
+      const response = await fetch("/api/inventory/ingredients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.get("name") as string,
+          unit: formData.get("unit") as string,
+          current_stock: Number(formData.get("current_stock")) || 0,
+          min_stock: Number(formData.get("min_stock")) || 0,
+          cost_per_unit: Number(formData.get("cost_per_unit")) || 0,
+          supplier_id: formData.get("supplier_id") || null,
+        }),
       })
 
-      if (error) throw error
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to add ingredient")
+      }
+
       setOpen(false)
       window.location.reload()
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding ingredient:", error)
-      alert("Failed to add ingredient")
+      alert(error.message || "Gagal menambah ingredient")
     } finally {
       setIsLoading(false)
     }

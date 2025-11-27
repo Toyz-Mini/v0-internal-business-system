@@ -181,11 +181,44 @@ export class InventoryService {
     return data || [];
   }
 
+  static async validateStockForOrder(
+    ingredients: Array<{ ingredient_id: string; quantity: number; name?: string }>
+  ): Promise<{ valid: boolean; errors: string[] }> {
+    const errors: string[] = [];
+
+    for (const item of ingredients) {
+      const ingredient = await this.getIngredientById(item.ingredient_id);
+
+      if (!ingredient) {
+        errors.push(`Ingredient ${item.name || item.ingredient_id} tidak dijumpai`);
+        continue;
+      }
+
+      if (ingredient.current_stock < item.quantity) {
+        errors.push(
+          `Stok tidak mencukupi untuk ${ingredient.name}. ` +
+          `Stok semasa: ${ingredient.current_stock.toFixed(2)} ${ingredient.unit}, ` +
+          `diperlukan: ${item.quantity.toFixed(2)} ${ingredient.unit}`
+        );
+      }
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors
+    };
+  }
+
   static async deductStockForOrder(
     orderId: string,
     ingredients: Array<{ ingredient_id: string; quantity: number }>
   ): Promise<void> {
     const supabase = await createClient();
+
+    const validation = await this.validateStockForOrder(ingredients);
+    if (!validation.valid) {
+      throw new Error(`Tidak boleh buat order: ${validation.errors.join(', ')}`);
+    }
 
     for (const item of ingredients) {
       const ingredient = await this.getIngredientById(item.ingredient_id);

@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Plus, Info } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 import { INGREDIENT_UNITS } from "@/lib/types"
 
@@ -53,46 +52,43 @@ export function AddStockDialog() {
   }, [open])
 
   async function fetchIngredients() {
-    const supabase = createClient()
-    const { data, error } = await supabase
-      .from("ingredients")
-      .select("id, name, unit, current_stock, avg_cost_per_unit")
-      .order("name")
+    try {
+      const response = await fetch("/api/inventory/ingredients")
+      const data = await response.json()
 
-    if (error) {
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to load ingredients")
+      }
+
+      setIngredients(data)
+    } catch (error: any) {
       console.error("[v0] Failed to fetch ingredients:", error)
-      toast.error("Failed to load ingredients")
-      return
+      toast.error(error.message || "Gagal muatkan ingredients")
     }
-    if (data) setIngredients(data)
   }
 
   async function fetchSuppliers() {
-    const supabase = createClient()
-    const { data, error } = await supabase
-      .from("suppliers")
-      .select("id, name, contact_person, is_active")
-      .eq("is_active", true)
-      .order("name")
-
-    if (error) {
+    try {
+      const response = await fetch("/api/suppliers")
+      if (response.ok) {
+        const data = await response.json()
+        setSuppliers(data.filter((s: any) => s.is_active))
+      }
+    } catch (error) {
       console.error("[v0] Failed to fetch suppliers:", error)
     }
-    if (data) setSuppliers(data)
   }
 
   async function fetchEmployees() {
-    const supabase = createClient()
-    const { data, error } = await supabase
-      .from("employees")
-      .select("id, name, is_active")
-      .eq("is_active", true)
-      .order("name")
-
-    if (error) {
+    try {
+      const response = await fetch("/api/employees")
+      if (response.ok) {
+        const data = await response.json()
+        setEmployees(data.filter((e: any) => e.is_active))
+      }
+    } catch (error) {
       console.error("[v0] Failed to fetch employees:", error)
     }
-    if (data) setEmployees(data)
   }
 
   function handleTotalCostChange(value: string) {
@@ -143,66 +139,52 @@ export function AddStockDialog() {
     setLoading(true)
 
     try {
-      const supabase = createClient()
-
       const quantity = Number.parseFloat(formData.quantity)
-      const unitCost = formData.unit_cost ? Number.parseFloat(formData.unit_cost) : null
-      const totalCost = formData.total_cost ? Number.parseFloat(formData.total_cost) : null
+      const unitCost = formData.unit_cost ? Number.parseFloat(formData.unit_cost) : undefined
+      const totalCost = formData.total_cost ? Number.parseFloat(formData.total_cost) : undefined
 
       if (!formData.ingredient_id) {
-        toast.error("Please select an ingredient")
+        toast.error("Sila pilih ingredient")
         setLoading(false)
         return
       }
 
       if (!formData.received_by) {
-        toast.error("Please select who received the stock")
+        toast.error("Sila pilih siapa yang terima stock")
         setLoading(false)
         return
       }
 
       if (isNaN(quantity) || quantity <= 0) {
-        toast.error("Please enter a valid quantity")
+        toast.error("Sila masukkan kuantiti yang sah")
         setLoading(false)
         return
       }
 
-      const rpcParams = {
-        p_ingredient_id: formData.ingredient_id,
-        p_movement_type: formData.type,
-        p_quantity: quantity,
-        p_unit_cost: unitCost,
-        p_total_cost: totalCost,
-        p_supplier_id: formData.type === "in" && formData.supplier_id ? formData.supplier_id : null,
-        p_received_by: formData.received_by,
-        p_notes: formData.notes || null,
-      }
-      console.log("[v0] Calling add_stock_movement with:", rpcParams)
+      const response = await fetch("/api/inventory/stock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ingredient_id: formData.ingredient_id,
+          type: formData.type,
+          quantity,
+          unit_cost: unitCost,
+          total_cost: totalCost,
+          supplier_id: formData.type === "in" && formData.supplier_id ? formData.supplier_id : undefined,
+          received_by: formData.received_by,
+          notes: formData.notes || undefined,
+        }),
+      })
 
-      // Call the atomic stock movement function
-      const { data, error } = await supabase.rpc("add_stock_movement", rpcParams)
+      const data = await response.json()
 
-      console.log("[v0] RPC response - data:", data, "error:", error)
-
-      if (error) {
-        console.error("[v0] Stock movement RPC error:", error)
-        toast.error(`Failed to update stock: ${error.message}`)
+      if (!response.ok) {
+        toast.error(data.message || data.error || "Gagal kemaskini stock")
         setLoading(false)
         return
       }
 
-      const result = Array.isArray(data) ? data[0] : data
-      console.log("[v0] Parsed result:", result)
-
-      if (!result?.ok) {
-        console.error("[v0] Stock movement failed:", result?.message)
-        toast.error(`Failed to update stock: ${result?.message || "Unknown error"}`)
-        setLoading(false)
-        return
-      }
-
-      console.log("[v0] Stock movement successful, log_id:", result.log_id)
-      toast.success("Stock updated successfully! Weighted average cost auto-calculated.")
+      toast.success("Berjaya kemaskini stock!")
 
       setFormData({
         ingredient_id: "",
@@ -219,7 +201,7 @@ export function AddStockDialog() {
       window.location.reload()
     } catch (error: any) {
       console.error("[v0] Stock update exception:", error)
-      toast.error(`Failed to update stock: ${error?.message || "Unknown error"}`)
+      toast.error(`Gagal kemaskini stock: ${error?.message || "Unknown error"}`)
     } finally {
       setLoading(false)
     }

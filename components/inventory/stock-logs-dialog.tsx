@@ -6,7 +6,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { History } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
 import type { StockLog, Ingredient } from "@/lib/types"
 
 export function StockLogsDialog() {
@@ -22,18 +21,19 @@ export function StockLogsDialog() {
 
   const fetchLogs = async () => {
     setIsLoading(true)
-    const supabase = createClient()
 
-    const { data, error } = await supabase
-      .from("stock_logs")
-      .select("*, ingredient:ingredients(*)")
-      .order("created_at", { ascending: false })
-      .limit(100)
+    try {
+      const response = await fetch("/api/inventory/stock-logs?limit=100")
+      const data = await response.json()
 
-    if (!error && data) {
-      setLogs(data)
+      if (response.ok) {
+        setLogs(data)
+      }
+    } catch (error) {
+      console.error("Failed to fetch stock logs:", error)
+    } finally {
+      setIsLoading(false)
     }
-    setIsLoading(false)
   }
 
   return (
