@@ -1,0 +1,79 @@
+{
+  "month": "2025-11",
+  "generated_at": "2025-11-27T14:20:00Z",
+  "summary": {
+    "total_employees": 1,
+    "total_payroll": 678.75,
+    "total_base_salary": 622.50,
+    "total_ot_pay": 56.25,
+    "total_hours": 41.50,
+    "total_ot_hours": 2.50
+  },
+  "payroll": [
+    {
+      "employee_id": "905d5ee0-7536-4c1e-98ba-f8f8e7a9bb4b",
+      "employee_code": "TEST001",
+      "employee_name": "Test Employee",
+      "position": null,
+      "salary_type": "hourly",
+      "hourly_rate": 15.00,
+      "ot_rate": 22.50,
+      "total_hours": 41.50,
+      "total_ot_hours": 2.50,
+      "base_salary": 622.50,
+      "ot_pay": 56.25,
+      "total_salary": 678.75,
+      "days_worked": 5,
+      "status": "calculated",
+      "breakdown": {
+        "attendance_records": [
+          {
+            "date": "2025-11-01",
+            "hours": 8.0,
+            "ot_hours": 1.0,
+            "pay": 120.00,
+            "ot_pay": 22.50
+          },
+          {
+            "date": "2025-11-04",
+            "hours": 9.0,
+            "ot_hours": 1.0,
+            "pay": 135.00,
+            "ot_pay": 22.50
+          },
+          {
+            "date": "2025-11-05",
+            "hours": 8.5,
+            "ot_hours": 0.5,
+            "pay": 127.50,
+            "ot_pay": 11.25
+          },
+          {
+            "date": "2025-11-06",
+            "hours": 8.0,
+            "ot_hours": 0.0,
+            "pay": 120.00,
+            "ot_pay": 0.00
+          },
+          {
+            "date": "2025-11-07",
+            "hours": 8.0,
+            "ot_hours": 0.0,
+            "pay": 120.00,
+            "ot_pay": 0.00
+          }
+        ]
+      }
+    }
+  ],
+  "calculation_notes": [
+    "Base salary calculated as: total_hours × hourly_rate",
+    "OT pay calculated as: total_ot_hours × ot_rate (1.5x hourly_rate)",
+    "Total salary = base_salary + ot_pay",
+    "Hours worked: 41.5 hours (5 days)",
+    "OT hours: 2.5 hours",
+    "Base pay: $622.50 (41.5 hrs @ $15/hr)",
+    "OT pay: $56.25 (2.5 hrs @ $22.50/hr)",
+    "Total: $678.75"
+  ]
+}
