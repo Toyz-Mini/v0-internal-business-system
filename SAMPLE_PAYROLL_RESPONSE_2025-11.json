@@ -1,0 +1,25 @@
+{
+  "month": "2025-11",
+  "summary": {
+    "total_employees": 1,
+    "total_payroll": 678.75,
+    "total_base_salary": 622.50,
+    "total_ot_pay": 56.25,
+    "total_hours": 41.50,
+    "total_ot_hours": 2.50
+  },
+  "payroll": [
+    {
+      "employee_id": "905d5ee0-7536-4c1e-98ba-f8f8e7a9bb4b",
+      "employee_name": "Test Employee",
+      "salary_type": "hourly",
+      "total_hours": 41.50,
+      "total_ot_hours": 2.50,
+      "base_salary": 622.50,
+      "ot_pay": 56.25,
+      "total_salary": 678.75,
+      "days_worked": 5,
+      "status": "pending"
+    }
+  ]
+}
