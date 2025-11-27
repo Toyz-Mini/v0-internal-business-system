@@ -28,45 +28,45 @@ const navigationGroups = {
   menuPos: {
     label: "Menu & POS",
     icon: ShoppingCart,
-    roles: ["admin", "cashier"],
+    roles: ["admin", "manager", "cashier"],
     items: [
-      { href: "/admin/products", label: "Menu Management", roles: ["admin"] },
-      { href: "/admin/categories", label: "Categories", roles: ["admin"] },
-      { href: "/admin/modifiers", label: "Modifier Groups", roles: ["admin"] },
-      { href: "/pos", label: "POS", roles: ["admin", "cashier"] },
-      { href: "/customers", label: "Orders & Customers", roles: ["admin", "cashier"] },
+      { href: "/admin/products", label: "Menu Management", roles: ["admin", "manager"] },
+      { href: "/admin/categories", label: "Categories", roles: ["admin", "manager"] },
+      { href: "/admin/modifiers", label: "Modifier Groups", roles: ["admin", "manager"] },
+      { href: "/pos", label: "POS", roles: ["admin", "manager", "cashier", "staff"] },
+      { href: "/customers", label: "Orders & Customers", roles: ["admin", "manager", "cashier"] },
     ],
   },
   operations: {
     label: "Operations",
     icon: Package,
-    roles: ["admin", "cashier", "staff"],
+    roles: ["admin", "manager", "cashier", "kitchen", "staff"],
     items: [
-      { href: "/stock-count", label: "Stock Count", roles: ["admin", "cashier", "staff"] },
-      { href: "/inventory", label: "Inventory", roles: ["admin"] },
-      { href: "/inventory/purchase-orders", label: "Purchase Orders", roles: ["admin"] },
-      { href: "/suppliers", label: "Suppliers", roles: ["admin"] },
+      { href: "/stock-count", label: "Stock Count", roles: ["admin", "manager", "cashier", "staff"] },
+      { href: "/inventory", label: "Inventory", roles: ["admin", "manager", "kitchen"] },
+      { href: "/inventory/purchase-orders", label: "Purchase Orders", roles: ["admin", "manager"] },
+      { href: "/suppliers", label: "Suppliers", roles: ["admin", "manager"] },
     ],
   },
   hrStaff: {
     label: "HR & Staff",
     icon: UserCircle,
-    roles: ["admin"],
+    roles: ["admin", "manager"],
     items: [
-      { href: "/hr/employees", label: "Employee Management", roles: ["admin"] },
-      { href: "/hr/attendance", label: "Attendance & OT", roles: ["admin"] },
-      { href: "/hr/claims", label: "Claims", roles: ["admin"] },
-      { href: "/hr/leave", label: "Leave", roles: ["admin"] },
-      { href: "/hr", label: "HR Dashboard", roles: ["admin"] },
+      { href: "/hr/employees", label: "Employee Management", roles: ["admin", "manager"] },
+      { href: "/hr/attendance", label: "Attendance & OT", roles: ["admin", "manager"] },
+      { href: "/hr/claims", label: "Claims", roles: ["admin", "manager"] },
+      { href: "/hr/leave", label: "Leave", roles: ["admin", "manager"] },
+      { href: "/hr", label: "HR Dashboard", roles: ["admin", "manager"] },
     ],
   },
   finance: {
     label: "Finance",
     icon: Wallet,
-    roles: ["admin"],
+    roles: ["admin", "manager"],
     items: [
-      { href: "/expenses", label: "Expenses", roles: ["admin"] },
-      { href: "/reports", label: "Reports", roles: ["admin", "cashier"] },
+      { href: "/expenses", label: "Expenses", roles: ["admin", "manager"] },
+      { href: "/reports", label: "Reports", roles: ["admin", "manager"] },
     ],
   },
   system: {
@@ -77,8 +77,9 @@ const navigationGroups = {
   },
 }
 
-// Staff-only items (not in collapsible groups)
-const staffItems = [{ href: "/attendance", label: "Punch Clock", icon: Clock, roles: ["admin", "cashier", "staff"] }]
+const staffItems = [
+  { href: "/attendance", label: "Punch Clock", icon: Clock, roles: ["admin", "manager", "cashier", "kitchen", "staff"] },
+]
 
 export function Sidebar({ userRole, userName }: SidebarProps) {
   const pathname = usePathname()

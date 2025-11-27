@@ -25,7 +25,7 @@ export default async function InventoryPage() {
   const userRole = (userProfile?.role || "staff") as UserRole
   const userName = userProfile?.name || user.email || "User"
 
-  if (userRole !== "admin") {
+  if (!["admin", "manager", "kitchen"].includes(userRole)) {
     redirect("/dashboard")
   }
 
@@ -53,15 +53,19 @@ export default async function InventoryPage() {
             <p className="text-muted-foreground">Manage your ingredients and stock levels</p>
           </div>
           <div className="flex gap-2 flex-wrap">
-            <RecomputeStockButton hasStockLogs={hasStockLogs} />
-            <PurchaseOrdersDialog suppliers={suppliersResult.data || []} ingredients={ingredients} />
-            <StockLogsDialog />
-            <AddStockDialog />
-            <AddIngredientDialog suppliers={suppliersResult.data || []} />
+            {["admin", "manager"].includes(userRole) && (
+              <>
+                <RecomputeStockButton hasStockLogs={hasStockLogs} />
+                <PurchaseOrdersDialog suppliers={suppliersResult.data || []} ingredients={ingredients} />
+                <StockLogsDialog />
+                <AddStockDialog />
+                <AddIngredientDialog suppliers={suppliersResult.data || []} />
+              </>
+            )}
           </div>
         </div>
 
-        <InventoryTable ingredients={ingredients} suppliers={suppliersResult.data || []} />
+        <InventoryTable ingredients={ingredients} suppliers={suppliersResult.data || []} userRole={userRole} />
 
         {ingredientsResult.error && (
           <div className="p-4 bg-destructive/10 text-destructive rounded-md">

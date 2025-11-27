@@ -37,6 +37,7 @@ interface CartProps {
   onClearCart: () => void
   cashierId?: string
   onOrderComplete?: () => void
+  userRole?: string
 }
 
 export function Cart({
@@ -51,6 +52,7 @@ export function Cart({
   onClearCart,
   cashierId,
   onOrderComplete,
+  userRole = "cashier",
 }: CartProps) {
   const [showPayment, setShowPayment] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)

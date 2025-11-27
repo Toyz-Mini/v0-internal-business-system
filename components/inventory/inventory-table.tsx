@@ -17,9 +17,10 @@ import { toast } from "sonner"
 interface InventoryTableProps {
   ingredients: (Ingredient & { supplier?: Supplier })[]
   suppliers: Supplier[]
+  userRole?: string
 }
 
-export function InventoryTable({ ingredients, suppliers }: InventoryTableProps) {
+export function InventoryTable({ ingredients, suppliers, userRole = "admin" }: InventoryTableProps) {
   const [search, setSearch] = useState("")
   const [editingItem, setEditingItem] = useState<Ingredient | null>(null)
   const [isUpdating, setIsUpdating] = useState(false)
@@ -160,20 +161,22 @@ export function InventoryTable({ ingredients, suppliers }: InventoryTableProps) 
                       {isLow ? <Badge variant="destructive">Low Stock</Badge> : <Badge variant="secondary">OK</Badge>}
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleRecomputeSingle(item.id)}
-                          disabled={recomputingId === item.id}
-                          title="Recompute stock from logs"
-                        >
-                          <RefreshCw className={`h-4 w-4 ${recomputingId === item.id ? "animate-spin" : ""}`} />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => setEditingItem(item)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      {["admin", "manager"].includes(userRole) && (
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRecomputeSingle(item.id)}
+                            disabled={recomputingId === item.id}
+                            title="Recompute stock from logs"
+                          >
+                            <RefreshCw className={`h-4 w-4 ${recomputingId === item.id ? "animate-spin" : ""}`} />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => setEditingItem(item)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
                     </TableCell>
                   </TableRow>
                 )
